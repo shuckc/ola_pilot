@@ -3,12 +3,19 @@ from ola.ClientWrapper import ClientWrapper
 from ola.DMXConstants import (DMX_MAX_SLOT_VALUE, DMX_MIN_SLOT_VALUE, DMX_UNIVERSE_SIZE)
 import math
 import time
+from rtmidi.midiutil import open_midiinput
+from rtmidi.midiconstants import NOTE_ON, NOTE_OFF, PROGRAM_CHANGE, CONTROLLER_CHANGE
+from functools import partial
+from collections import defaultdict
+
 
 def onDmxSent(state):
     if not state.Succeeded():
         wrapper.Stop()
     # print(state)
 
+
+# https://blog.saikoled.com/post/44677718712/how-to-convert-from-hsi-to-rgb-white
 class RGBW:
     def __init__(self):
         self._data = array('B', [DMX_MIN_SLOT_VALUE]*4)
@@ -21,7 +28,6 @@ class RGBW:
         self._data[1] = green
     def tick(self, counter):
         pass
-
 
     def as_dmx_RGBW(self):
         return self._data
@@ -38,8 +44,8 @@ class PTPos:
         self.set_pos(pan, tilt)
 
     def set_pos(self, pan, tilt):
-        pan = int(pan)
-        tilt = int(tilt)
+        pan = min(0xFFFF, max(0,int(pan)))
+        tilt = min(0xFFFF, max(0, int(tilt)))
         self._data[0] = pan >> 8
         self._data[1] = pan & 0xFF
         self._data[2] = tilt >> 8
@@ -55,13 +61,20 @@ class PTPos:
 class WavePTPos(PTPos):
     def __init__(self, wave=10):
         self.wave = wave
+        self.pan = 0
         super().__init__()
 
     def tick(self, counter):
         ms = counter/1000
         wave = math.sin(ms) * self.wave
-        self.set_rpos_deg(0, wave)
+        # print(f"wave: {wave} {self.pan}")
+        self.set_rpos_deg(360*((self.pan/127)-0.5), wave)
 
+    def set_pan(self, pan):
+        self.pan = pan
+
+    def set_wave_deg(self, wave):
+        self.wave = wave
 
 class Fixture:
     def __init__(self):
@@ -92,13 +105,10 @@ class IbizaMini(Fixture):
         self.light_belt = Channel()
 
     def write(self, universe, base, counter):
-        self.pos.tick(counter)
-        self.wash.tick(counter)
-        self.spot_colour.tick(counter)
-        self.spot_gobo.tick(counter)
-        self.light_belt.tick(counter)
+        for p in [self.pos, self.wash, self.spot, self.spot_colour, self.spot_gobo, self.light_belt]:
+            p.tick(counter)
         universe[base+0:base+4] = self.pos.as_dmx_PPTT()
-        universe[base+4] = 5 # pan/tilt speed
+        universe[base+4] = 0 # pan/tilt speed
         universe[base+5] = 255 # global dimmer
         universe[base+6] = self.spot.as_dmx()
         universe[base+7] = self.spot_colour.as_dmx()
@@ -123,6 +133,7 @@ class FixtureController:
         self._wrapper.AddEvent(self._update_interval, self.update_dmx)
         self._counter = 0
         self.fixtures = []
+        self.pollable = []
         self.init = time.time()
 
     def update_dmx(self):
@@ -131,37 +142,83 @@ class FixtureController:
         """
         # reschedule our event
         self._wrapper.AddEvent(self._update_interval, self.update_dmx)
+        self._counter = self._counter + self._update_interval
+
+        for pollable in self.pollable:
+            pollable.tick(self._counter)
 
         for fixture, base in self.fixtures:
             fixture.write(self._data, base, self._counter)
-        self._counter = self._counter + self._update_interval
 
         # Send the DMX data
         self._client.SendDmx(self._universe, self._data)
 
-        print(f"time={time.time()} elapsed={time.time() - self.init} counter={self._counter/1000} slip={time.time()-self.init - self._counter/1000}")
+        # print(f"time={time.time()} elapsed={time.time() - self.init} counter={self._counter/1000} slip={time.time()-self.init - self._counter/1000}")
 
 
     def add_fixture(self, fixture: Fixture, base: int):
         self.fixtures.append((fixture, base))
+    def add_pollable(self, pollable):
+        self.pollable.append(pollable)
 
     def __repr__(self):
         for fixture, base in self.fixtures:
             print(f"{base} {fixture}")
         return ""
 
+class MidiCC:
+    def __init__(self, midi_in):
+        self.midi_in = midi_in
+        self.notes_on = {}
+        self.cc_last = {}
+        self.cc_listeners = defaultdict(list)
+
+    def tick(self, counter):
+        while True:
+            msg = self.midi_in.get_message()
+            if msg:
+                message, timedelta = msg
+                if message[0] & 0xF0 == CONTROLLER_CHANGE:
+                    print(f"CC: {message[1]} = {message[2]}")
+                    self.cc_last[message[1]] = message[2]
+                else:
+                    print(f"unknonw midi event: {msg} {hex(msg[0][0])}")
+            else:
+                break
+
+        for k,v in self.cc_last.items():
+            for listener in self.cc_listeners[k]:
+                listener(v)
+
+        self.cc_last.clear()
+
+    # TODO: some sort of auto scaling, ie. bind to a 'pin' rather than a callback fn
+    def bind_cc(self, channel, listener):
+        self.cc_listeners[channel].append(listener)
+
+
 if __name__ == '__main__':
     wrapper = ClientWrapper()
-    controller = FixtureController(wrapper, universe=1, update_interval=30)
+
+    midiin, port_name = open_midiinput(port="MPK")
+    banks = MidiCC(midiin)
+
+    controller = FixtureController(wrapper, universe=1, update_interval=25)
     # wrapper.AddEvent(SHUTDOWN_INTERVAL, wrapper.Stop)
 
     mini = IbizaMini()
     controller.add_fixture(mini, 20)
+    controller.add_pollable(banks)
 
     # mini.wash.set_red(200)
     mini.wash.set_green(200)
     mini.pos.set_rpos_deg(0,0)
     mini.pos = WavePTPos(wave=20)
+
+    banks.bind_cc(70, mini.pos.set_pan)
+    banks.bind_cc(71, mini.pos.set_wave_deg)
+    banks.bind_cc(72, mini.spot.set)
+
     mini.spot.set(150)
 
     print(mini)
