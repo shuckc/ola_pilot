@@ -1,24 +1,20 @@
 from array import array
-from ola.ClientWrapper import ClientWrapper
-from ola.DMXConstants import DMX_MAX_SLOT_VALUE, DMX_MIN_SLOT_VALUE, DMX_UNIVERSE_SIZE
+import asyncio
 import math
 import time
+
+from aio_ola import OlaClient
 from rtmidi.midiutil import open_midiinput
 from rtmidi.midiconstants import NOTE_ON, NOTE_OFF, PROGRAM_CHANGE, CONTROLLER_CHANGE
 from functools import partial
 from collections import defaultdict
 
-
-def onDmxSent(state):
-    if not state.Succeeded():
-        wrapper.Stop()
-    # print(state)
-
+DMX_UNIVERSE_SIZE = 512
 
 # https://blog.saikoled.com/post/44677718712/how-to-convert-from-hsi-to-rgb-white
 class RGBW:
     def __init__(self):
-        self._data = array("B", [DMX_MIN_SLOT_VALUE] * 4)
+        self._data = array("B", [0] * 4)
 
     def set_red(self, red):
         # TODO ?
@@ -37,7 +33,7 @@ class RGBW:
 
 class PTPos:
     def __init__(self, pan_range=540, tilt_range=180):
-        self._data = array("B", [DMX_MIN_SLOT_VALUE] * 4)
+        self._data = array("B", [0] * 4)
         self.pan_range = pan_range
         self.tilt_range = tilt_range
 
@@ -143,36 +139,36 @@ class IbizaMini(Fixture):
 
 
 class FixtureController:
-    def __init__(self, client_wrapper, universe=1, update_interval=25):
+    def __init__(self, client, universe=1, update_interval=25):
         self._universe = universe
         self._update_interval = update_interval
-        self._data = array("B", [DMX_MIN_SLOT_VALUE] * DMX_UNIVERSE_SIZE)
-        self._wrapper = client_wrapper
-        self._client = client_wrapper.Client()
-        self._wrapper.AddEvent(self._update_interval, self.update_dmx)
+        self._client = client
         self._counter = 0
         self.fixtures = []
         self.pollable = []
         self.init = time.time()
 
-    def update_dmx(self):
-        """
-        This function gets called periodically based on UPDATE_INTERVAL
-        """
-        # reschedule our event
-        self._wrapper.AddEvent(self._update_interval, self.update_dmx)
-        self._counter = self._counter + self._update_interval
+    async def run(self):
+        data = array("B", [0] * DMX_UNIVERSE_SIZE)
+        while True:
+            """
+            This function gets called periodically based on UPDATE_INTERVAL
+            """
+            # reschedule our event
+            self._counter = self._counter + self._update_interval
 
-        for pollable in self.pollable:
-            pollable.tick(self._counter)
+            for pollable in self.pollable:
+                pollable.tick(self._counter)
 
-        for fixture, base in self.fixtures:
-            fixture.write(self._data, base, self._counter)
+            for fixture, base in self.fixtures:
+                fixture.write(data, base, self._counter)
 
-        # Send the DMX data
-        self._client.SendDmx(self._universe, self._data)
+            # Send the DMX data
+            await self._client.set_dmx(self._universe, data)
 
-        # print(f"time={time.time()} elapsed={time.time() - self.init} counter={self._counter/1000} slip={time.time()-self.init - self._counter/1000}")
+            await asyncio.sleep(self._update_interval/1000.0)
+
+            print(f"time={time.time()} elapsed={time.time() - self.init} counter={self._counter/1000} slip={time.time()-self.init - self._counter/1000}")
 
     def add_fixture(self, fixture: Fixture, base: int):
         self.fixtures.append((fixture, base))
@@ -217,14 +213,15 @@ class MidiCC:
         self.cc_listeners[channel].append(listener)
 
 
-if __name__ == "__main__":
-    wrapper = ClientWrapper()
+
+async def main():
+    client = OlaClient()
+    await client.connect()
 
     midiin, port_name = open_midiinput(port="MPK")
     banks = MidiCC(midiin)
 
-    controller = FixtureController(wrapper, universe=1, update_interval=25)
-    # wrapper.AddEvent(SHUTDOWN_INTERVAL, wrapper.Stop)
+    controller = FixtureController(client, universe=1, update_interval=25)
 
     mini = IbizaMini()
     controller.add_fixture(mini, 20)
@@ -243,5 +240,7 @@ if __name__ == "__main__":
 
     print(mini)
     print(controller)
+    await controller.run()
 
-    wrapper.Run()
+if __name__ == "__main__":
+    asyncio.run(main())
