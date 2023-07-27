@@ -148,7 +148,7 @@ class FixtureController:
         self.init = time.time()
         self.frames = 0
         self.fps = 0
-        self.target_fps = 1/self._update_interval*1000
+        self.target_fps = 1 / self._update_interval * 1000
         self.showtime = 0
         self.universes = {}
 
@@ -158,7 +158,7 @@ class FixtureController:
         while True:
             self.showtime = time.time() - self.init
             self.frames += 1
-            self.fps = self.frames/self.showtime
+            self.fps = self.frames / self.showtime
 
             for pollable in self.pollable:
                 pollable.tick(self.showtime)
@@ -171,7 +171,7 @@ class FixtureController:
                 await self._client.set_dmx(universe, data)
             await asyncio.sleep(self._update_interval / 1000.0)
 
-    def add_fixture(self, universe:int, base: int, fixture: Fixture):
+    def add_fixture(self, universe: int, base: int, fixture: Fixture):
         self.fixtures.append((universe, base, fixture))
         if not universe in self.universes:
             self.universes[universe] = array("B", [0] * DMX_UNIVERSE_SIZE)
@@ -183,7 +183,10 @@ class FixtureController:
         s = ""
         for fixture, base, universe in self.fixtures:
             s = s + f"{universe} {base} {fixture}\n"
-        s = s + f"time={time.time()} showtime={self.showtime} fps={self.fps} target={self.target_fps}"
+        s = (
+            s
+            + f"time={time.time()} showtime={self.showtime} fps={self.fps} target={self.target_fps}"
+        )
         return s
 
 
@@ -192,6 +195,7 @@ class MidiCC:
         self.midi_in = midi_in
         self.notes_on = {}
         self.cc_last = {}
+        self.cc_pending = {}
         self.cc_listeners = defaultdict(list)
 
     def tick(self, counter):
@@ -199,19 +203,32 @@ class MidiCC:
             msg = self.midi_in.get_message()
             if msg:
                 message, timedelta = msg
+                channel = message[0] & 0x0F
                 if message[0] & 0xF0 == CONTROLLER_CHANGE:
-                    print(f"CC: {message[1]} = {message[2]}")
+                    print(f"CC: {channel} {message[1]} = {message[2]}")
                     self.cc_last[message[1]] = message[2]
+                    self.cc_pending[message[1]] = message[2]
+                elif message[0] & 0xF0 == NOTE_ON:
+                    print(
+                        f"Note On: ch{channel} note {message[1]} velocity {message[2]}"
+                    )
+                    self.notes_on[message[1]] = message[2]
+                elif message[0] & 0xF0 == NOTE_OFF:
+                    print(f"Note Off: ch{channel} note {message[1]}")
+                    del self.notes_on[message[1]]
                 else:
-                    print(f"unknonw midi event: {msg} {hex(msg[0][0])}")
+                    print(f"unknown midi event: {msg} {hex(msg[0][0])}")
             else:
                 break
 
-        for k, v in self.cc_last.items():
+        for k, v in self.cc_pending.items():
             for listener in self.cc_listeners[k]:
                 listener(v)
 
-        self.cc_last.clear()
+        self.cc_pending.clear()
+
+    def __repr__(self):
+        return f"CC: {self.cc_last}\nNotes: {self.notes_on}"
 
     # TODO: some sort of auto scaling, ie. bind to a 'pin' rather than a callback fn
     def bind_cc(self, channel, listener):
@@ -244,10 +261,12 @@ def build_show():
     mini.spot.set(150)
     return controller
 
+
 async def main():
     controller = build_show()
     print(controller)
     await controller.run()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
