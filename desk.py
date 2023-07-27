@@ -11,6 +11,7 @@ from collections import defaultdict
 
 DMX_UNIVERSE_SIZE = 512
 
+
 # https://blog.saikoled.com/post/44677718712/how-to-convert-from-hsi-to-rgb-white
 class RGBW:
     def __init__(self):
@@ -166,9 +167,11 @@ class FixtureController:
             # Send the DMX data
             await self._client.set_dmx(self._universe, data)
 
-            await asyncio.sleep(self._update_interval/1000.0)
+            await asyncio.sleep(self._update_interval / 1000.0)
 
-            print(f"time={time.time()} elapsed={time.time() - self.init} counter={self._counter/1000} slip={time.time()-self.init - self._counter/1000}")
+            print(
+                f"time={time.time()} elapsed={time.time() - self.init} counter={self._counter/1000} slip={time.time()-self.init - self._counter/1000}"
+            )
 
     def add_fixture(self, fixture: Fixture, base: int):
         self.fixtures.append((fixture, base))
@@ -213,7 +216,6 @@ class MidiCC:
         self.cc_listeners[channel].append(listener)
 
 
-
 async def main():
     client = OlaClient()
     await client.connect()
@@ -241,6 +243,7 @@ async def main():
     print(mini)
     print(controller)
     await controller.run()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

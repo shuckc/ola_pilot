@@ -3,7 +3,7 @@ import logging
 import sys
 import time
 
-from silly import MidiCC
+from desk import MidiCC
 
 log = logging.getLogger("midiin_poll")
 logging.basicConfig(level=logging.DEBUG)
