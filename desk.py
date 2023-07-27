@@ -66,7 +66,7 @@ class WavePTPos(PTPos):
         super().__init__()
 
     def tick(self, counter):
-        ms = counter / 1000
+        ms = counter
         wave = math.sin(ms) * self.wave
         # print(f"wave: {wave} {self.pan}")
         self.set_rpos_deg(360 * ((self.pan / 127) - 0.5), wave)
@@ -140,49 +140,51 @@ class IbizaMini(Fixture):
 
 
 class FixtureController:
-    def __init__(self, client, universe=1, update_interval=25):
-        self._universe = universe
+    def __init__(self, client, update_interval=25):
         self._update_interval = update_interval
         self._client = client
-        self._counter = 0
         self.fixtures = []
         self.pollable = []
         self.init = time.time()
+        self.frames = 0
+        self.fps = 0
+        self.target_fps = 1/self._update_interval*1000
+        self.showtime = 0
+        self.universes = {}
 
     async def run(self):
-        data = array("B", [0] * DMX_UNIVERSE_SIZE)
+        await self._client.connect()
+
         while True:
-            """
-            This function gets called periodically based on UPDATE_INTERVAL
-            """
-            # reschedule our event
-            self._counter = self._counter + self._update_interval
+            self.showtime = time.time() - self.init
+            self.frames += 1
+            self.fps = self.frames/self.showtime
 
             for pollable in self.pollable:
-                pollable.tick(self._counter)
+                pollable.tick(self.showtime)
 
-            for fixture, base in self.fixtures:
-                fixture.write(data, base, self._counter)
+            for universe, base, fixture in self.fixtures:
+                fixture.write(self.universes[universe], base, self.showtime)
 
             # Send the DMX data
-            await self._client.set_dmx(self._universe, data)
-
+            for universe, data in self.universes.items():
+                await self._client.set_dmx(universe, data)
             await asyncio.sleep(self._update_interval / 1000.0)
 
-            print(
-                f"time={time.time()} elapsed={time.time() - self.init} counter={self._counter/1000} slip={time.time()-self.init - self._counter/1000}"
-            )
-
-    def add_fixture(self, fixture: Fixture, base: int):
-        self.fixtures.append((fixture, base))
+    def add_fixture(self, universe:int, base: int, fixture: Fixture):
+        self.fixtures.append((universe, base, fixture))
+        if not universe in self.universes:
+            self.universes[universe] = array("B", [0] * DMX_UNIVERSE_SIZE)
 
     def add_pollable(self, pollable):
         self.pollable.append(pollable)
 
     def __repr__(self):
-        for fixture, base in self.fixtures:
-            print(f"{base} {fixture}")
-        return ""
+        s = ""
+        for fixture, base, universe in self.fixtures:
+            s = s + f"{universe} {base} {fixture}\n"
+        s = s + f"time={time.time()} showtime={self.showtime} fps={self.fps} target={self.target_fps}"
+        return s
 
 
 class MidiCC:
@@ -216,17 +218,18 @@ class MidiCC:
         self.cc_listeners[channel].append(listener)
 
 
-async def main():
+def build_show():
     client = OlaClient()
-    await client.connect()
 
     midiin, port_name = open_midiinput(port="MPK")
     banks = MidiCC(midiin)
 
-    controller = FixtureController(client, universe=1, update_interval=25)
+    controller = FixtureController(client, update_interval=25)
 
     mini = IbizaMini()
-    controller.add_fixture(mini, 20)
+    mini2 = IbizaMini()
+    controller.add_fixture(1, 20, mini)
+    controller.add_fixture(1, 40, mini2)
     controller.add_pollable(banks)
 
     # mini.wash.set_red(200)
@@ -239,11 +242,12 @@ async def main():
     banks.bind_cc(72, mini.spot.set)
 
     mini.spot.set(150)
+    return controller
 
-    print(mini)
+async def main():
+    controller = build_show()
     print(controller)
     await controller.run()
-
 
 if __name__ == "__main__":
     asyncio.run(main())
