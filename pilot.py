@@ -1,9 +1,10 @@
 import asyncio
 
 from textual.app import App, ComposeResult
-from textual.widgets import Button, Footer, Header, Static, DataTable
-from textual.containers import ScrollableContainer
+from textual.widgets import Button, Footer, Header, Static, DataTable, Label
+from textual.containers import ScrollableContainer, Grid
 from textual.reactive import reactive
+from textual.screen import ModalScreen
 
 from desk import build_show, MidiCC
 
@@ -76,6 +77,24 @@ class MidiInfo(Static):
         self.update(f"Midi\n{self.midi}")
 
 
+class QuitScreen(ModalScreen):
+    """Screen with a dialog to quit."""
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Are you sure you want to quit?", id="question"),
+            Button("Quit", variant="error", id="quit"),
+            Button("Cancel", variant="primary", id="cancel"),
+            id="dialog",
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "quit":
+            self.app.exit()
+        else:
+            self.app.pop_screen()
+
+
 class OlaPilot(App):
     """A Textual app to manage stopwatches."""
 
@@ -83,6 +102,7 @@ class OlaPilot(App):
     BINDINGS = [
         ("d", "toggle_dark", "Toggle dark mode"),
         ("b", "blackout", "Toggle blackout"),
+        ("q", "request_quit", "Quit?"),
     ]
 
     def __init__(
@@ -118,6 +138,10 @@ class OlaPilot(App):
 
     def action_blackout(self) -> None:
         self.controller.blackout = not self.controller.blackout
+
+    def action_request_quit(self) -> None:
+        """Action to display the quit dialog."""
+        self.push_screen(QuitScreen())
 
 
 if __name__ == "__main__":
