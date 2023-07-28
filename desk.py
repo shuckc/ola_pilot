@@ -5,7 +5,7 @@ import time
 
 from aio_ola import OlaClient
 from rtmidi.midiutil import open_midiinput
-from rtmidi.midiconstants import NOTE_ON, NOTE_OFF, PROGRAM_CHANGE, CONTROLLER_CHANGE
+from rtmidi.midiconstants import NOTE_ON, NOTE_OFF, PROGRAM_CHANGE, CONTROLLER_CHANGE, POLY_AFTERTOUCH, CHANNEL_AFTERTOUCH
 from functools import partial
 from collections import defaultdict
 
@@ -221,6 +221,13 @@ class MidiCC:
                 elif message[0] & 0xF0 == NOTE_OFF:
                     print(f"Note Off: ch{channel} note {message[1]}")
                     del self.notes_on[message[1]]
+                elif message[0] & 0xF0 == CHANNEL_AFTERTOUCH:
+                    pass
+                    # print(f"Note touch: ch{channel} note {message[1]}")
+                    # self.notes_on[message[1]] = message[2]
+                elif message[0] & 0xF0 == POLY_AFTERTOUCH:
+                    print(f"Note touch: ch{channel} note {message[1]} velocity {message[2]}")
+                    self.notes_on[message[1]] = message[2]
                 else:
                     print(f"unknown midi event: {msg} {hex(msg[0][0])}")
             else:
