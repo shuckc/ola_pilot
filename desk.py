@@ -151,6 +151,8 @@ class FixtureController:
         self.target_fps = 1 / self._update_interval * 1000
         self.showtime = 0
         self.universes = {}
+        self.blackout = False
+        self._blackout_buffer = array("B", [0] * DMX_UNIVERSE_SIZE)
 
     async def run(self):
         await self._client.connect()
@@ -168,7 +170,10 @@ class FixtureController:
 
             # Send the DMX data
             for universe, data in self.universes.items():
-                await self._client.set_dmx(universe, data)
+                if self.blackout:
+                    await self._client.set_dmx(universe, self._blackout_buffer)
+                else:
+                    await self._client.set_dmx(universe, data)
             await asyncio.sleep(self._update_interval / 1000.0)
 
     def add_fixture(self, universe: int, base: int, fixture: Fixture):

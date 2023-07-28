@@ -25,8 +25,9 @@ class ShowtimeDisplay(Static):
         st = self.controller.showtime
         minutes, seconds = divmod(st, 60)
         hours, minutes = divmod(minutes, 60)
+        bodict = {True: "[BLACKOUT]", False: ""}
         self.update(
-            f"Showtime {hours:02,.0f}:{minutes:02.0f}:{seconds:05.2f} fps {self.controller.fps:02.0f}/{self.controller.target_fps:02.0f}"
+            f"Showtime {hours:02,.0f}:{minutes:02.0f}:{seconds:05.2f} fps {self.controller.fps:02.0f}/{self.controller.target_fps:02.0f}  {bodict[self.controller.blackout]}"
         )
 
 
@@ -116,7 +117,7 @@ class OlaPilot(App):
         self.dark = not self.dark
 
     def action_blackout(self) -> None:
-        self.bo = True
+        self.controller.blackout = not self.controller.blackout
 
 
 if __name__ == "__main__":
