@@ -25,3 +25,7 @@ Further Information
 * blocking python API https://www.openlighting.org/ola/developer-documentation/python-api/
 * Open Fixture Library https://github.com/OpenLightingProject/open-fixture-library
 
+TODO
+---
+* sound to light with https://github.com/aubio/aubio/blob/master/python/README.md
+

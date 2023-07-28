@@ -12,10 +12,21 @@ from collections import defaultdict
 DMX_UNIVERSE_SIZE = 512
 
 
+fixture_class_list = []
+def fixture(wrapped):
+    fixture_class_list.append(wrapped)
+    return wrapped
+
+efx_class_list = []
+def register_efx(wrapped):
+    efx_class_list.append(wrapped)
+    return wrapped
+
+
 # https://blog.saikoled.com/post/44677718712/how-to-convert-from-hsi-to-rgb-white
-class RGBW:
+class RGB:
     def __init__(self):
-        self._data = array("B", [0] * 4)
+        self._data = array("B", [0] * 3)
 
     def set_red(self, red):
         # TODO ?
@@ -25,10 +36,42 @@ class RGBW:
     def set_green(self, green):
         self._data[1] = green
 
-    def tick(self, counter):
-        pass
+    def set_blue(self, blue):
+        self._data[2] = blue
+
+    def get_red(self):
+        return self._data[0]
+
+    def get_green(self):
+        return self._data[1]
+
+    def get_blue(self):
+        return self._data[2]
+
+    def get_hex(self):
+        return f"#{bytes(self._data[0:3]).hex()}"
+
+    def as_dmx_RGB(self):
+        return self._data
+
+class RGBW(RGB):
+    def __init__(self):
+        self._data = array("B", [0] * 4)
+
+    def set_white(self, white):
+        self._data[3] = white
 
     def as_dmx_RGBW(self):
+        return self._data
+
+class RGBA(RGB):
+    def __init__(self):
+        self._data = array("B", [0] * 4)
+
+    def set_amber(self, amber):
+        self._data[3] = amber
+
+    def as_dmx_RGBA(self):
         return self._data
 
 
@@ -37,6 +80,8 @@ class PTPos:
         self._data = array("B", [0] * 4)
         self.pan_range = pan_range
         self.tilt_range = tilt_range
+        self.pan = 0
+        self.tilt = 0
 
     def set_rpos_deg(self, pan, tilt):
         # arguments in degress relative to straight down
@@ -45,34 +90,47 @@ class PTPos:
         self.set_pos(pan, tilt)
 
     def set_pos(self, pan, tilt):
-        pan = min(0xFFFF, max(0, int(pan)))
-        tilt = min(0xFFFF, max(0, int(tilt)))
-        self._data[0] = pan >> 8
-        self._data[1] = pan & 0xFF
-        self._data[2] = tilt >> 8
-        self._data[3] = tilt & 0xFF
-
-    def tick(self, counter):
-        pass
+        self.pan = min(0xFFFF, max(0, int(pan)))
+        self.tilt = min(0xFFFF, max(0, int(tilt)))
+        self._data[0] = self.pan >> 8
+        self._data[1] = self.pan & 0xFF
+        self._data[2] = self.tilt >> 8
+        self._data[3] = self.tilt & 0xFF
 
     def as_dmx_PPTT(self):
         return self._data
 
+class EFX:
+    def __init__(self, target):
+        self.enabled = True
+        self.target = target
+        self.can_act_on = [Channel]
 
-class WavePTPos(PTPos):
-    def __init__(self, wave=10):
+    def tick(self, counter):
+        pass
+
+@register_efx
+class WavePT_EFX(EFX):
+    def __init__(self, target, wave=10):
         self.wave = wave
-        self.pan = 0
-        super().__init__()
+        self.orientation = 0
+        super().__init__(target)
+        self.can_act_on = [PTPos]
+        self.pan_midi = 0
 
     def tick(self, counter):
         ms = counter
-        wave = math.sin(ms) * self.wave
-        # print(f"wave: {wave} {self.pan}")
-        self.set_rpos_deg(360 * ((self.pan / 127) - 0.5), wave)
+        # wave_p = math.sin(ms) * self.wave
+        # magnitude of oscilation
+        wave = math.cos(ms) * self.wave
+        # map to pan and tilt by orientation
+        wave_p = wave * math.cos(self.orientation)
+        wave_t = wave * math.sin(self.orientation)
 
-    def set_pan(self, pan):
-        self.pan = pan
+        self.target.set_rpos_deg(360 * ((self.pan_midi / 127) - 0.5), wave)
+
+    def set_pan_midi(self, pan):
+        self.pan_midi = pan
 
     def set_wave_deg(self, wave):
         self.wave = wave
@@ -96,38 +154,27 @@ class Channel:
     def as_dmx(self):
         return self.value
 
-    def tick(self, counter):
-        pass
-
-
 class IndexedChannel(Channel):
     pass
 
 
+@fixture
 class IbizaMini(Fixture):
     def __init__(self):
         self.pos = PTPos()
         self.wash = RGBW()
         self.spot = Channel()
-        self.spot_colour = IndexedChannel()
+        self.spot_cw = IndexedChannel()
         self.spot_gobo = IndexedChannel()
         self.light_belt = Channel()
+        self.ch = 19
 
     def write(self, universe, base, counter):
-        for p in [
-            self.pos,
-            self.wash,
-            self.spot,
-            self.spot_colour,
-            self.spot_gobo,
-            self.light_belt,
-        ]:
-            p.tick(counter)
         universe[base + 0 : base + 4] = self.pos.as_dmx_PPTT()
         universe[base + 4] = 0  # pan/tilt speed
         universe[base + 5] = 255  # global dimmer
         universe[base + 6] = self.spot.as_dmx()
-        universe[base + 7] = self.spot_colour.as_dmx()
+        universe[base + 7] = self.spot_cw.as_dmx()
         universe[base + 8] = self.spot_gobo.as_dmx()
         # RGBW
         universe[base + 9 : base + 13] = self.wash.as_dmx_RGBW()
@@ -138,6 +185,14 @@ class IbizaMini(Fixture):
         universe[base + 17] = 0  # PT control
         universe[base + 18] = self.light_belt.as_dmx()
 
+@fixture
+class LedJ7Q5RGBA(Fixture):
+    def __init__(self):
+        self.wash = RGBA()
+        self.ch = 4
+
+    def write(self, universe, base, counter):
+        universe[base + 0 : base + 4] = self.wash.as_dmx_RGBA()
 
 class FixtureController:
     def __init__(self, client, update_interval=25):
@@ -145,6 +200,7 @@ class FixtureController:
         self._client = client
         self.fixtures = []
         self.pollable = []
+        self.efx = []
         self.init = time.time()
         self.frames = 0
         self.fps = 0
@@ -162,7 +218,7 @@ class FixtureController:
             self.frames += 1
             self.fps = self.frames / self.showtime
 
-            for pollable in self.pollable:
+            for pollable in self.pollable + self.efx:
                 pollable.tick(self.showtime)
 
             for universe, base, fixture in self.fixtures:
@@ -181,8 +237,14 @@ class FixtureController:
         if not universe in self.universes:
             self.universes[universe] = array("B", [0] * DMX_UNIVERSE_SIZE)
 
+    def add_efx(self, efx: EFX):
+        self.efx.append(efx)
+
     def add_pollable(self, pollable):
         self.pollable.append(pollable)
+
+    def set_dmx(self, universe, channel, value):
+        self.universes[universe][channel] = value
 
     def __repr__(self):
         s = ""
@@ -260,17 +322,39 @@ def build_show():
     controller.add_fixture(1, 20, mini)
     controller.add_fixture(1, 40, mini2)
     controller.add_pollable(banks)
+    controller.add_fixture(1, 85, par1 := LedJ7Q5RGBA())
+    controller.add_fixture(1, 79, par2 := LedJ7Q5RGBA())
+
+    # this sets a raw channel value in the DMX universe, it will
+    # be overridden by any patched fixture
+    controller.set_dmx(1, 0, 128)
 
     # mini.wash.set_red(200)
     mini.wash.set_green(200)
     mini.pos.set_rpos_deg(0, 0)
-    mini.pos = WavePTPos(wave=20)
+    mini.spot.set(150)
 
-    banks.bind_cc(70, mini.pos.set_pan)
-    banks.bind_cc(71, mini.pos.set_wave_deg)
+    efx = WavePT_EFX(wave=20, target=mini.pos)
+    controller.add_efx(efx)
+
+    par2.wash.set_green(200)
+
+    banks.bind_cc(70, efx.set_pan_midi)
+    banks.bind_cc(71, efx.set_wave_deg)
     banks.bind_cc(72, mini.spot.set)
 
-    mini.spot.set(150)
+    # a bus is a subset of traits and fixtures, like a fixture group
+    # busses also have an 'enabled' trait.
+    # the simplest bus fans out it's trait to all registered fixtures
+    # Another time-delays the propagation of values along the fixtures
+    # another might export the trait twice as 'start' and 'end' traits and linearly
+    # interpolate the difference
+    # bus1 = ReplicateBus(['wash'], [mini1, mini2, par1, par2])
+    # bus1.wash.set_red(200)
+
+    print(fixture_class_list)
+    print(efx_class_list)
+
     return controller
 
 
