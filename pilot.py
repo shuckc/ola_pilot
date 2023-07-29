@@ -1,7 +1,7 @@
 import asyncio
 
 from textual.app import App, ComposeResult
-from textual.widgets import Button, Footer, Header, Static, DataTable, Label, OptionList, Input, Switch
+from textual.widgets import Button, Footer, Header, Static, DataTable, Label, OptionList, Input, Switch, Checkbox, Select
 from textual.containers import ScrollableContainer, Grid, Horizontal, Vertical
 from textual.reactive import reactive
 from textual.screen import ModalScreen
@@ -148,16 +148,17 @@ class AddFixtureScreen(ModalScreen):
     ]
 
     def compose(self) -> ComposeResult:
-        yield Grid(
-            Label("Add fixture", id="addheader"),
+        g = Grid(
             Label("Fixture"),
-            OptionList(
-             *[c.__name__ for c in fixture_class_list]*8,
+            Select(
+             [(c.__name__,i) for i,c in enumerate(fixture_class_list)],
             id="fixturelist"),
             Label("Quantity"),
             Input("1"),
             Label("Patch?"),
-            Switch(animate=True),
+            Checkbox("Patch", id="patch"),
+            Label("Universe"),
+            Input("1"),
             Label("First address"),
             Input("1"),
             Label("Spacing"),
@@ -166,6 +167,9 @@ class AddFixtureScreen(ModalScreen):
             Button("Cancel", variant="default", id="cancel"),
             id="dialog2",
         )
+        yield g
+        g.border_title="Add fixture"
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "quit":
             pass

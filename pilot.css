@@ -13,12 +13,7 @@ ShowtimeDisplay {
     height: 1;
 }
 
-
-Button {
-    width: 16;
-}
-
-QuitScreen {
+Screen {
     align: center middle;
 }
 
@@ -40,3 +35,16 @@ QuitScreen {
     content-align: center middle;
 }
 
+AddFixtureScreen {
+    align: center middle;
+}
+
+#dialog2 {
+    width: 60;
+    height: 30;
+    grid-size: 2;
+    grid-columns: 1fr 2fr;
+    padding: 1;
+    border: heavy yellow;
+    background: $surface;
+}
