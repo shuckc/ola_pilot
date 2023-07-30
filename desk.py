@@ -111,12 +111,13 @@ class EFX:
 
 @register_efx
 class WavePT_EFX(EFX):
-    def __init__(self, target, wave=10):
+    def __init__(self, target, wave=0):
         self.wave = wave
         self.orientation = 0
         super().__init__(target)
         self.can_act_on = [PTPos]
         self.pan_midi = 0
+        self.tilt_midi = 0
 
     def tick(self, counter):
         ms = counter
@@ -127,10 +128,13 @@ class WavePT_EFX(EFX):
         wave_p = wave * math.cos(self.orientation)
         wave_t = wave * math.sin(self.orientation)
 
-        self.target.set_rpos_deg(360 * ((self.pan_midi / 127) - 0.5), wave)
+        self.target.set_rpos_deg(360 * ((self.pan_midi / 127) - 0.5), 360 * ((self.tilt_midi / 127) - 0.5) + wave)
 
     def set_pan_midi(self, pan):
         self.pan_midi = pan
+
+    def set_tilt_midi(self, tilt):
+        self.tilt_midi = tilt
 
     def set_wave_deg(self, wave):
         self.wave = wave
@@ -214,23 +218,27 @@ class FixtureController:
         await self._client.connect()
 
         while True:
-            self.showtime = time.time() - self.init
-            self.frames += 1
-            self.fps = self.frames / self.showtime
-
-            for pollable in self.pollable + self.efx:
-                pollable.tick(self.showtime)
-
-            for universe, base, fixture in self.fixtures:
-                fixture.write(self.universes[universe], base, self.showtime)
-
-            # Send the DMX data
-            for universe, data in self.universes.items():
-                if self.blackout:
-                    await self._client.set_dmx(universe, self._blackout_buffer)
-                else:
-                    await self._client.set_dmx(universe, data)
+            await self._tick_once()
             await asyncio.sleep(self._update_interval / 1000.0)
+
+    async def _tick_once(self):
+        self.showtime = time.time() - self.init
+        self.frames += 1
+        self.fps = self.frames / self.showtime
+
+        for pollable in self.pollable + self.efx:
+            pollable.tick(self.showtime)
+
+        for universe, base, fixture in self.fixtures:
+            fixture.write(self.universes[universe], base, self.showtime)
+
+        # Send the DMX data
+        for universe, data in self.universes.items():
+            if self.blackout:
+                await self._client.set_dmx(universe, self._blackout_buffer)
+            else:
+                await self._client.set_dmx(universe, data)
+
 
     def add_fixture(self, universe: int, base: int, fixture: Fixture):
         self.fixtures.append((universe, base, fixture))
@@ -244,7 +252,15 @@ class FixtureController:
         self.pollable.append(pollable)
 
     def set_dmx(self, universe, channel, value):
+        if not universe in self.universes:
+            self.universes[universe] = array("B", [0] * DMX_UNIVERSE_SIZE)
         self.universes[universe][channel] = value
+
+    def get_dmx(self, universe, channel):
+        if self.blackout:
+            return 0
+        else:
+            return self.universes[universe][channel]
 
     def __repr__(self):
         s = ""
@@ -334,14 +350,15 @@ def build_show():
     mini.pos.set_rpos_deg(0, 0)
     mini.spot.set(150)
 
-    efx = WavePT_EFX(wave=20, target=mini.pos)
+    efx = WavePT_EFX(wave=0, target=mini.pos)
     controller.add_efx(efx)
 
     par2.wash.set_green(200)
 
     banks.bind_cc(70, efx.set_pan_midi)
-    banks.bind_cc(71, efx.set_wave_deg)
+    banks.bind_cc(71, efx.set_tilt_midi)
     banks.bind_cc(72, mini.spot.set)
+    banks.bind_cc(73, efx.set_wave_deg)
 
     # a bus is a subset of traits and fixtures, like a fixture group
     # busses also have an 'enabled' trait.
@@ -351,14 +368,13 @@ def build_show():
     # interpolate the difference
     # bus1 = ReplicateBus(['wash'], [mini1, mini2, par1, par2])
     # bus1.wash.set_red(200)
-
-    print(fixture_class_list)
-    print(efx_class_list)
-
     return controller
 
 
 async def main():
+    print(f"fixtures: {fixture_class_list}")
+    print(f"efx: {efx_class_list}")
+
     controller = build_show()
     print(controller)
     await controller.run()

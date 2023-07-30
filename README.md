@@ -1,9 +1,14 @@
 ola_pilot
 ---
 
-A simple desk supporting fixtures using ola to handle DMX hardware.
-Communicated by TCP to ola's RPC port (localhost:9010) using asyncio.
+A simple desk supporting fixtures using [ola](https://www.openlighting.org/ola/) to handle DMX hardware.
+All output is via. TCP to ola's RPC port (localhost:9010) using protobufs and asyncio.
 
+Whilst I like QLC+, I was motivated by finding it very difficult to achieve certain things - like map a MIDI CC to a hue, and drive this to fixtures of multiple types (RGB, RGBA, RGBW) together. With moving heads it was difficult to shape the parameters of animation on the fly.
+
+Optional CLI using [textual](https://github.com/Textualize/textual).
+
+Midi support uses [rtmidi](https://github.com/SpotlightKid/python-rtmidi).
 
 Running
 ----
@@ -15,7 +20,7 @@ Use OLA admin http://localhost:9090/ola.html to attach a universe to a dongle or
     $ python -m venv venv
     $ . venv/bin/activate
     $ pip install -r requirements.txt
-    $ python desk.py
+    $ python pilot.py
 
 
 Further Information
@@ -28,4 +33,5 @@ Further Information
 TODO
 ---
 * sound to light with https://github.com/aubio/aubio/blob/master/python/README.md
+* colour conversion with https://blog.saikoled.com/post/44677718712/how-to-convert-from-hsi-to-rgb-white
 

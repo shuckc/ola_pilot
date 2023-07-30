@@ -48,3 +48,14 @@ AddFixtureScreen {
     border: heavy yellow;
     background: $surface;
 }
+
+#dialog3 {
+    width: 60;
+    height: auto;
+    min-height:10;
+    grid-size: 2;
+    grid-columns: 1fr 2fr;
+    padding: 1;
+    border: heavy yellow;
+    background: $surface;
+}
