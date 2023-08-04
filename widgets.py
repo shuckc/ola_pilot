@@ -6,7 +6,9 @@ from textual.timer import Timer
 from textual.widgets import Footer, Label, ProgressBar, Button
 from textual.reactive import reactive
 from textual.renderables.bar import Bar as BarRenderable
-
+from textual.binding import Binding
+from textual.message import Message
+from textual import on
 
 from math import ceil
 from time import monotonic
@@ -23,7 +25,7 @@ from textual.widget import Widget
 class Bar(Widget, can_focus=True):
     """The bar portion of the progress bar."""
 
-    COMPONENT_CLASSES = {"bar--bar", "bar--complete", "bar--focus"}
+    COMPONENT_CLASSES = {"bar--bar", "bar--complete"}
     """
     The bar sub-widget provides the component classes that follow.
 
@@ -60,8 +62,31 @@ class Bar(Widget, can_focus=True):
     }
     """
 
+    BINDINGS = [
+        Binding("up", "increase", "Increase value (fine)", show=True),
+        Binding("down", "decrease", "Decrease value (fine)", show=True),
+        Binding("pageup", "page_up", "Increase value (course)", show=True),
+        Binding("pagedown", "page_down", "Decrease value (course)", show=True),
+    ]
+
+
     _percentage: reactive[float | None] = reactive[Optional[float]](None)
     """The percentage of progress that has been completed."""
+
+    class PositionDelta(Message):
+        """Posted when the value of the slider changes.
+        This message can be handled using an `on_slider_changed` method.
+        """
+
+        def __init__(self, slider: Slider, change: int) -> None:
+            super().__init__()
+            self.change: int = change
+            self.slider: Slider = slider
+
+        @property
+        def control(self) -> Slider:
+            return self.slider
+
 
     def __init__(
         self,
@@ -90,6 +115,19 @@ class Bar(Widget, can_focus=True):
             highlight_style=Style.from_color(bar_style.color),
             background_style=Style.from_color(bar_style.bgcolor),
         )
+
+    def action_page_up(self) -> None:
+        """Move the cursor one page up."""
+        self.post_message(self.PositionDelta(self, +10))
+
+    def action_page_down(self) -> None:
+        self.post_message(self.PositionDelta(self, -10))
+
+    def action_increase(self) -> None:
+        self.post_message(self.PositionDelta(self, +1))
+
+    def action_decrease(self) -> None:
+        self.post_message(self.PositionDelta(self, -1))
 
 
 class PercentageStatus(Label):
@@ -135,7 +173,7 @@ class FormattedValueLabel(Label):
 
     DEFAULT_CSS = """
     FormattedValueLabel {
-        width: 8;
+        width: 7;
         content-align-horizontal: right;
     }
     """
@@ -178,6 +216,9 @@ class PositionBar(Widget, can_focus=False):
         width: auto;
         height: 1;
     }
+    PositionBar > Horizontal > #label_dash {
+        color: grey;
+    }
     PositionBar > Horizontal > #label_min {
         content-align-horizontal: right;
         color: grey;
@@ -191,6 +232,24 @@ class PositionBar(Widget, can_focus=False):
     }
 
     """
+    class PositionChanged(Message):
+        """Posted when the value of the slider changes.
+        This message can be handled using an `on_slider_changed` method.
+        """
+
+        def __init__(self, bar: PositionBar, position_min: int, position: int, position_max: int) -> None:
+            super().__init__()
+            self.position_min: int = position_min
+            self.position: int = position
+            self.position_max: int = position_max
+            self.bar: PositionBar = bar
+
+        @property
+        def control(self) -> Slider:
+            return self.slider
+
+        def __str__(self):
+            return f"PositionChanged({self.position_min},{self.position},{self.position_max})"
 
     """The progress so far, in number of steps."""
     position: reactive[int] = reactive(0)
@@ -284,6 +343,8 @@ class PositionBar(Widget, can_focus=False):
                 bar = Bar(id="bar")
                 self.watch(self, "percentage", update_widget_value(bar, "_percentage"))
                 yield bar
+            elif self.show_range:
+                yield Label("-", id="label_dash")
             if self.show_range:
                 max_label = FormattedValueLabel(id="label_max", formatter=self.formatter)
                 self.watch(self, "position_max", update_widget_value(max_label, "_value"))
@@ -362,6 +423,12 @@ class PositionBar(Widget, can_focus=False):
         if adjust is not None:
             self.progress += adjust
 
+    @on(Bar.PositionDelta)
+    def _update_position(self, event) -> None:
+        old_position = self.position
+        self.position = self.position + event.change
+        if self.position != old_position:
+            self.post_message(self.PositionChanged(self, self.position_min, self.position, self.position_max))
 
 class DemoPositionBar(App[None]):
     BINDINGS = [("r", "reset", "Reset")]
@@ -375,10 +442,13 @@ class DemoPositionBar(App[None]):
         def pounds(n):
             return f"£{(n/100):.2f}"
 
+        def ppmco2(n):
+            return f"{(n/100):.2f}ppm CO²"
 
         with Center():
             with Middle():
-                yield Label("Fully featured")
+                yield Label("PositionBar Demo")
+                yield Label("\nFully featured")
                 yield PositionBar(0,1,1, id="hi1f")
                 yield PositionBar(0,100,300, id="hi1")
                 yield Label("\nWith unit formatter")
@@ -393,7 +463,12 @@ class DemoPositionBar(App[None]):
                 yield Label("\nWithout range, percentage, value")
                 yield PositionBar(20,30,40, id="hi7", show_range=False, show_percentage=False, show_value=False)
 
-                yield Button('hello')
+                yield Label("\nWithout bar")
+                yield PositionBar(20,30,40, id="hi8", show_range=True, show_percentage=False, show_bar=False)
+                yield PositionBar(20,30,40, id="hi9", show_range=False, show_percentage=False, show_bar=False, formatter=ppmco2)
+                yield Label("Last value: N/A", id="last_value")
+
+                yield Button('Quit')
 
         yield Footer()
 
@@ -409,6 +484,14 @@ class DemoPositionBar(App[None]):
     def action_reset(self) -> None:
         self.query_one("#hi2", PositionBar).update(position=175)
         self.query_one("#hi3", PositionBar).update(position_max=200, position=175, position_min=50)
+
+    def on_button_pressed(self, button):
+        exit()
+
+    @on(PositionBar.PositionChanged)
+    def on_position_changed(self, event):
+        self.query_one("#last_value", Label).update(f"Last value: {event}")
+
 
 if __name__ == "__main__":
     DemoPositionBar().run()
