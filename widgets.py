@@ -70,7 +70,7 @@ class Bar(Widget, can_focus=True):
     ]
 
 
-    _percentage: reactive[float | None] = reactive[Optional[float]](None)
+    _percentage: reactive[float] = reactive[float](0.0)
     """The percentage of progress that has been completed."""
 
     class PositionDelta(Message):
@@ -78,14 +78,14 @@ class Bar(Widget, can_focus=True):
         This message can be handled using an `on_slider_changed` method.
         """
 
-        def __init__(self, slider: Slider, change: int) -> None:
+        def __init__(self, bar: Bar, change: int) -> None:
             super().__init__()
             self.change: int = change
-            self.slider: Slider = slider
+            self.bar: Bar = bar
 
         @property
-        def control(self) -> Slider:
-            return self.slider
+        def control(self) -> Bar:
+            return self.bar
 
 
     def __init__(
@@ -97,10 +97,9 @@ class Bar(Widget, can_focus=True):
     ):
         """Create a bar for a [`ProgressBar`][textual.widgets.ProgressBar]."""
         super().__init__(name=name, id=id, classes=classes, disabled=disabled)
-        self._percentage = None
+        self._percentage = 0.0
 
-    def watch__percentage(self, percentage: float | None) -> None:
-        """Manage the timer that enables the indeterminate bar animation."""
+    def watch__percentage(self, percentage: float) -> None:
         pass
 
     def render(self) -> RenderResult:
@@ -188,7 +187,7 @@ class FormattedValueLabel(Label):
         id: str | None = None,
         classes: str | None = None,
         disabled: bool = False,
-        formatter: Callable[int,str] = str,
+        formatter: Callable[[int],str] = str,
     ):
         self.formatter = formatter
         super().__init__(name=name, id=id, classes=classes, disabled=disabled)
@@ -245,8 +244,8 @@ class PositionBar(Widget, can_focus=False):
             self.bar: PositionBar = bar
 
         @property
-        def control(self) -> Slider:
-            return self.slider
+        def control(self) -> PositionBar:
+            return self.bar
 
         def __str__(self):
             return f"PositionChanged({self.position_min},{self.position},{self.position_max})"
@@ -276,7 +275,7 @@ class PositionBar(Widget, can_focus=False):
         position_min: int,
         position: int,
         position_max: int,
-        formatter: Callable[int,str] = str,
+        formatter: Callable[[int],str] = str,
         *,
         show_bar: bool = True,
         show_percentage: bool = True,
@@ -363,10 +362,6 @@ class PositionBar(Widget, can_focus=False):
         """Clamp the position between minimum and the maximum."""
         return clamp(position, self.position_min, self.position_max)
 
-    def watch_total(self, total: float | None) -> None:
-        """Re-validate progress."""
-        self.progress = self.progress
-
     def compute_percentage(self) -> float | None:
         """Keep the percentage of progress updated automatically.
 
@@ -376,7 +371,7 @@ class PositionBar(Widget, can_focus=False):
             return 0.0
         return (self.position - self.position_min) / (self.position_max - self.position_min)
 
-    def adjust(self, adjust: float = 1) -> None:
+    def adjust(self, adjust: int = 1) -> None:
         """Adjust the value of the position bar by the given amount.
 
         Example:
@@ -421,7 +416,7 @@ class PositionBar(Widget, can_focus=False):
         if position is not None:
             self.position = position
         if adjust is not None:
-            self.progress += adjust
+            self.position += adjust
 
     @on(Bar.PositionDelta)
     def _update_position(self, event) -> None:
