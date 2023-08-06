@@ -1,16 +1,46 @@
 import asyncio
 
 from textual.app import App, ComposeResult
-from textual.widgets import Button, Footer, Header, Static, DataTable, Label, OptionList, Input, Switch, Checkbox, Select
+from textual.widgets import (
+    Button,
+    Footer,
+    Header,
+    Static,
+    DataTable,
+    Label,
+    OptionList,
+    Input,
+    Switch,
+    Checkbox,
+    Select,
+)
 from textual.containers import ScrollableContainer, Grid, Horizontal, Vertical
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.binding import Binding
+from textual.widgets._data_table import RowKey
 
 from rich.text import Text
-from typing import Optional
+from typing import Optional, List, Dict, Any, Tuple, Callable, TypeVar, Generic
 
-from desk import build_show, MidiCC, Fixture, fixture_class_list, EFX
+from desk import (
+    build_show,
+    MidiCC,
+    Fixture,
+    fixture_class_list,
+    EFX,
+    PTPos,
+    RGB,
+    RGBA,
+    RGBW,
+    Channel,
+    IndexedChannel,
+    Trait,
+    OnOffChannel,
+)
+
+BLACKOUT_DICT = {True: "[BLACKOUT]", False: ""}
+
 
 class ShowtimeDisplay(Static):
     """A widget to display show time, fps"""
@@ -29,9 +59,8 @@ class ShowtimeDisplay(Static):
         st = self.controller.showtime
         minutes, seconds = divmod(st, 60)
         hours, minutes = divmod(minutes, 60)
-        bodict = {True: "[BLACKOUT]", False: ""}
         self.update(
-            f"Showtime {hours:02,.0f}:{minutes:02.0f}:{seconds:05.2f} fps {self.controller.fps:02.0f}/{self.controller.target_fps:02.0f}  {bodict[self.controller.blackout]}"
+            f"Showtime {hours:02,.0f}:{minutes:02.0f}:{seconds:05.2f} fps {self.controller.fps:02.0f}/{self.controller.target_fps:02.0f}  {BLACKOUT_DICT[self.controller.blackout]}"
         )
 
 
@@ -55,110 +84,136 @@ class UniverseDisplay(Static):
         self.update(f"DMX {self.universe}\n{uhex}")
 
 
-class FixturesTable(DataTable):
-    def __init__(
-        self,
-        fixtures,
-    ) -> None:
+T = TypeVar("T")
+
+
+class TraitTable(DataTable, Generic[T]):
+    def __init__(self, fixtures: List[T], extra_columns: List[str] = ["name"]) -> None:
         super().__init__()
-        self.fixtures = fixtures
-        self.traits = []
+        self.fixtures: List[T] = fixtures
+        self.traits: List[str] = []
+        self.traits_fmt: Dict[Tuple[str, type], Callable[[int], str]] = {}
+        self.rk: Dict[T, RowKey] = {}
+        self.extra_columns = extra_columns
+        traits_keys = {}
+        for f in self.fixtures:
+            for k, v in f.__dict__.items():
+                if isinstance(v, Trait):
+                    self.traits_fmt[(k, type(v))] = TRAIT_FORMATTER_DICT[type(v)]
+                    traits_keys[k] = True
+
+        self.traits.extend(list(traits_keys.keys()))
 
     def on_mount(self) -> None:
-        self.traits = ["wash", "pos", "spot", "spot_gobo", "spot_cw"]
-        self.trait_conv = [self.fmt_wash, self.fmt_pos, self.fmt_ch, self.fmt_idx, self.fmt_idx]
-        for c in ["univ", "base", "ch", "fixture"] + self.traits:
+        # iterate fixtures for traits, build dicts
+        # traits with same nuderlying type and name over multiple fixures go in same column
+
+        for c in self.extra_columns + self.traits:
             self.add_column(c, key=c)
         for f in self.fixtures:
-            rk = self.add_row(*self.prep(f))
-            f[2]._fixture_RowKey = rk
+            p = self._get_row_data(f)
+            rk = self.add_row(*p)
+            self.rk[f] = rk
+
         self.update_timer = self.set_interval(1 / 10, self.update_time)
 
-    def prep(self, f: Fixture):
-        basic = [f[0], f[1]+1, f[2].ch, type(f[2]).__name__]
-        traits = [c(getattr(f[2], t)) if hasattr(f[2], t) else "" for t,c in zip(self.traits, self.trait_conv)]
-        return basic + traits
+    def _get_basic(self, f: T):
+        return [type(f).__name__]
+
+    def _get_row_data(self, f: T):
+        rowdata = self._get_basic(f)
+        for t in self.traits:
+            try:
+                a = getattr(f, t)
+                fmt = self.traits_fmt[(t, type(a))]
+                rowdata.append(fmt(a))
+            except AttributeError:
+                rowdata.append("")
+        return rowdata
 
     def update_time(self) -> None:
         for f in self.fixtures:
-            for t,c in zip(self.traits, self.trait_conv):
-                v = c(getattr(f[2], t)) if hasattr(f[2], t) else ""
-                self.update_cell(f[2]._fixture_RowKey, t, v)
-
-
-    def fmt_ch(self, channel):
-        v = int(channel.value / 255 * 100)
-        return f"{v:2}%"
-
-    def fmt_pos(self, position):
-        return f"{position.pan:5} {position.tilt:5}"
-
-    def fmt_wash(self, wash):
-        t = f"{wash.get_red():3} {wash.get_green():3} {wash.get_blue():3}"
-
-        return Text(t, style=wash.get_hex(), justify="right")
-
-    def fmt_idx(self, indexed):
-        return "open"
+            for t in self.traits:
+                try:
+                    a = getattr(f, t)
+                    fmt = self.traits_fmt[(t, type(a))]
+                    self.update_cell(self.rk[f], t, fmt(a))
+                except AttributeError:
+                    pass
 
     def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
         def handler(value):
             pass
+
         row_key = event.cell_key.row_key
-        fixture = [f[2] for f in self.fixtures if f[2]._fixture_RowKey == row_key][0]
+        fixture: T = [f for f, rk in self.rk.items() if rk == row_key][0]
         trait = event.cell_key.column_key.value
         name = f"{type(fixture).__name__}.{trait}"
-        value = getattr(fixture, trait)
-        self.app.push_screen(EditTraitScreen(name, value),handler)
+        if trait:
+            try:
+                value = getattr(fixture, trait)
+                self.app.push_screen(EditTraitScreen(name, value), handler)
+            except AttributeError:
+                pass
 
 
-class EFXTable(DataTable):
-    def __init__(
-        self,
-        efx,
-    ) -> None:
-        super().__init__()
-        self.efx = efx
-        self.traits = []
+class FixturesTable(TraitTable[Fixture]):
+    BINDINGS = [
+        ("f", "add_fixture", "Add fixture"),
+    ]
 
-    def on_mount(self) -> None:
-        self.traits = ["wave", "pan_midi", "tilt_midi"]
-        self.trait_conv = [self.fmt_pos, self.fmt_ch, self.fmt_ch]
-        for c in ["efx"] + self.traits:
-            self.add_column(c, key=c)
-        for e in self.efx:
-            rk = self.add_row(*self.prep(e))
-            e._efx_RowKey = rk
-        self.update_timer = self.set_interval(1 / 10, self.update_time)
+    def __init__(self, fixtures):
+        super().__init__(fixtures, ["universe", "base", "ch", "fixture"])
 
-    def prep(self, e: EFX):
-        basic = [type(e).__name__]
-        traits = [c(getattr(e, t)) if hasattr(e, t) else "" for t,c in zip(self.traits, self.trait_conv)]
-        return basic + traits
+    def _get_basic(self, f: T):
+        return [f.universe, f.base + 1 if f.base else "-", f.ch, type(f).__name__]
 
-    def update_time(self) -> None:
-        for e in self.efx:
-            for t,c in zip(self.traits, self.trait_conv):
-                v = c(getattr(e, t)) if hasattr(e, t) else ""
-                self.update_cell(e._efx_RowKey, t, v)
-
-    def fmt_ch(self, channel):
-        return f"{channel:4}%"
-
-    def fmt_pos(self, position):
-        return f"{position:5}"
+    def action_add_fixture(self) -> None:
+        self.push_screen(AddFixtureScreen())
 
 
-class FixturesTools(Static):
-    def __init__(
-        self,
-        controller,
-    ) -> None:
-        super().__init__()
-        self.controller = controller
+class EFXTable(TraitTable[EFX]):
+    BINDINGS = [
+        Binding("E", "add_efx", "Add EFX", show=True),
+        Binding("Delete", "rm_efx", "Remove EFX", show=True),
+    ]
 
-    def compose(self) -> ComposeResult:
-        yield Button("Add")
+    def __init__(self, efx):
+        super().__init__(efx, ["name"])
+
+
+def fmt_colour(rgb):
+    t = f"{rgb.red.pos:3} {rgb.green.pos:3} {rgb.blue.pos:3}"
+    return Text(t, style=rgb.get_hex(), justify="right")
+
+
+def fmt_pos(pos):
+    return f"{pos.pan.pos:5} {pos.tilt.pos:5}"
+
+
+def fmt_ch(channel):
+    v = int(channel.value.pos / 255 * 100)
+    return f"{v:2}%"
+
+
+def fmt_idxch(indexed):
+    return "open"
+
+
+def fmt_on_off(channel):
+    v = channel.value.pos
+    return {0: "off", 1: "on"}[v]
+
+
+TRAIT_FORMATTER_DICT = {
+    PTPos: fmt_pos,
+    RGB: fmt_colour,
+    RGBA: fmt_colour,
+    RGBW: fmt_colour,
+    Channel: fmt_ch,
+    IndexedChannel: fmt_idxch,
+    OnOffChannel: fmt_on_off,
+}
 
 
 class MidiInfo(Static):
@@ -173,12 +228,13 @@ class MidiInfo(Static):
         self.update(f"Midi\n{self.midi}")
 
 
-
 class EditTraitScreen(ModalScreen[Optional[int]]):
     """Edit trait value or cancel editing"""
+
     BINDINGS = [
         Binding("escape", "app.pop_screen", "", show=False),
     ]
+
     def __init__(self, ref, old_value):
         self.ref = ref
         self.old_value = str(old_value)
@@ -195,15 +251,14 @@ class EditTraitScreen(ModalScreen[Optional[int]]):
             id="dialog3",
         )
         yield g
-        g.border_title="Set value"
+        g.border_title = "Set value"
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "quit":
             self.dismiss(None)
         else:
-            self.dismiss(self.old_value)
+            self.dismiss(int(self.old_value))
         # self.app.pop_screen()
-
 
 
 class QuitScreen(ModalScreen):
@@ -223,8 +278,10 @@ class QuitScreen(ModalScreen):
         else:
             self.app.pop_screen()
 
+
 class AddFixtureScreen(ModalScreen):
     """Browse fixture list and dynamic add."""
+
     BINDINGS = [
         Binding("escape", "app.pop_screen", "", show=False),
     ]
@@ -233,8 +290,9 @@ class AddFixtureScreen(ModalScreen):
         g = Grid(
             Label("Fixture"),
             Select(
-             [(c.__name__,i) for i,c in enumerate(fixture_class_list)],
-            id="fixturelist"),
+                [(c.__name__, i) for i, c in enumerate(fixture_class_list)],
+                id="fixturelist",
+            ),
             Label("Quantity"),
             Input("1"),
             Label("Patch?"),
@@ -250,7 +308,7 @@ class AddFixtureScreen(ModalScreen):
             id="dialog2",
         )
         yield g
-        g.border_title="Add fixture"
+        g.border_title = "Add fixture"
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "quit":
@@ -266,7 +324,6 @@ class OlaPilot(App):
         ("d", "toggle_dark", "Toggle dark mode"),
         ("b", "blackout", "Toggle blackout"),
         ("q", "request_quit", "Quit?"),
-        ("f", "add_fixture", "Add fixture"),
     ]
 
     def __init__(
@@ -286,7 +343,6 @@ class OlaPilot(App):
                 for univ, data in self.controller.universes.items()
             ]
             + [FixturesTable(self.controller.fixtures)]
-            # + [FixturesTools(self.controller)]
             + [
                 MidiInfo(midi)
                 for midi in self.controller.pollable
@@ -297,6 +353,11 @@ class OlaPilot(App):
         yield ShowtimeDisplay(self.controller)
 
         self.t = asyncio.create_task(controller.run())
+        self.update_title()
+
+    def update_title(self):
+        title = f"OLA Pilot {BLACKOUT_DICT[self.controller.blackout]}"
+        self.console.set_window_title(title)
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
@@ -308,9 +369,6 @@ class OlaPilot(App):
     def action_request_quit(self) -> None:
         """Action to display the quit dialog."""
         self.push_screen(QuitScreen())
-
-    def action_add_fixture(self) -> None:
-        self.push_screen(AddFixtureScreen())
 
 
 if __name__ == "__main__":

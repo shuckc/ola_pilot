@@ -2,122 +2,145 @@ from array import array
 import asyncio
 import math
 import time
+from abc import ABC, abstractmethod
 
 from aio_ola import OlaClient
 from rtmidi.midiutil import open_midiinput
-from rtmidi.midiconstants import NOTE_ON, NOTE_OFF, PROGRAM_CHANGE, CONTROLLER_CHANGE, POLY_AFTERTOUCH, CHANNEL_AFTERTOUCH
+from rtmidi.midiconstants import (
+    NOTE_ON,
+    NOTE_OFF,
+    PROGRAM_CHANGE,
+    CONTROLLER_CHANGE,
+    POLY_AFTERTOUCH,
+    CHANNEL_AFTERTOUCH,
+)
 from functools import partial
 from collections import defaultdict
+from typing import Optional, TypeAlias, List, MutableSequence
 
 DMX_UNIVERSE_SIZE = 512
 
+UniverseType: TypeAlias = MutableSequence[int]
+
 
 fixture_class_list = []
+
+
 def fixture(wrapped):
     fixture_class_list.append(wrapped)
     return wrapped
 
+
 efx_class_list = []
+
+
 def register_efx(wrapped):
     efx_class_list.append(wrapped)
     return wrapped
 
 
+class Trait(ABC):
+    @abstractmethod
+    def patch(self, data: UniverseType, base: int) -> None:
+        pass
+
+
 # https://blog.saikoled.com/post/44677718712/how-to-convert-from-hsi-to-rgb-white
-class RGB:
+class RGB(Trait):
     def __init__(self):
-        self._data = array("B", [0] * 3)
+        self.red = ByteChannelProp()
+        self.green = ByteChannelProp()
+        self.blue = ByteChannelProp()
 
     def set_red(self, red):
         # TODO ?
         # from HSV?
-        self._data[0] = red
+        self.red.set(red)
 
     def set_green(self, green):
-        self._data[1] = green
+        self.green.set(green)
 
     def set_blue(self, blue):
-        self._data[2] = blue
-
-    def get_red(self):
-        return self._data[0]
-
-    def get_green(self):
-        return self._data[1]
-
-    def get_blue(self):
-        return self._data[2]
+        self.blue.set(blue)
 
     def get_hex(self):
-        return f"#{bytes(self._data[0:3]).hex()}"
+        return f"#{self.red.pos:02X}{self.green.pos:02X}{self.blue.pos:02X}"
 
-    def as_dmx_RGB(self):
-        return self._data
+    def patch(self, data: UniverseType, base: int) -> None:
+        self.red.patch(data, base + 0)
+        self.green.patch(data, base + 1)
+        self.blue.patch(data, base + 2)
+
 
 class RGBW(RGB):
     def __init__(self):
-        self._data = array("B", [0] * 4)
+        super().__init__()
+        self.white = ByteChannelProp()
+
+    def patch(self, data: UniverseType, base: int) -> None:
+        super().patch(data, base)
+        self.white.patch(data, base + 3)
 
     def set_white(self, white):
-        self._data[3] = white
+        self.white.set(white)
 
-    def as_dmx_RGBW(self):
-        return self._data
 
 class RGBA(RGB):
     def __init__(self):
-        self._data = array("B", [0] * 4)
+        super().__init__()
+        self.amber = ByteChannelProp()
 
     def set_amber(self, amber):
-        self._data[3] = amber
+        self.amber.set(amber)
 
-    def as_dmx_RGBA(self):
-        return self._data
+    def patch(self, data: UniverseType, base: int) -> None:
+        super().patch(data, base)
+        self.amber.patch(data, base + 3)
 
 
-class PTPos:
+class PTPos(Trait):
     def __init__(self, pan_range=540, tilt_range=180):
-        self._data = array("B", [0] * 4)
-        self.pan_range = pan_range
-        self.tilt_range = tilt_range
-        self.pan = 0
-        self.tilt = 0
+        # self._data = array("B", [0] * 4)
+        self._pan_range = pan_range
+        self._tilt_range = tilt_range
+        self.pan = FineChannelProp()
+        self.tilt = FineChannelProp()
 
     def set_rpos_deg(self, pan, tilt):
         # arguments in degress relative to straight down
-        pan = 0xFFFF * (0.5 + (pan / self.pan_range))
-        tilt = 0xFFFF * (0.5 + (tilt / self.tilt_range))
+        pan = 0xFFFF * (0.5 + (pan / self._pan_range))
+        tilt = 0xFFFF * (0.5 + (tilt / self._tilt_range))
         self.set_pos(pan, tilt)
 
     def set_pos(self, pan, tilt):
-        self.pan = min(0xFFFF, max(0, int(pan)))
-        self.tilt = min(0xFFFF, max(0, int(tilt)))
-        self._data[0] = self.pan >> 8
-        self._data[1] = self.pan & 0xFF
-        self._data[2] = self.tilt >> 8
-        self._data[3] = self.tilt & 0xFF
+        self.pan.set(pan)
+        self.tilt.set(tilt)
 
-    def as_dmx_PPTT(self):
-        return self._data
+    def patch(self, data: UniverseType, base: int) -> None:
+        self.pan.patch(data, base + 0)
+        self.tilt.patch(data, base + 2)
+
 
 class EFX:
     def __init__(self, target):
-        self.enabled = True
+        self.enabled = OnOffChannel()
         self.target = target
-        self.can_act_on = [Channel]
+        self.can_act_on = [Trait]
 
     def tick(self, counter):
         pass
 
+
 @register_efx
 class WavePT_EFX(EFX):
     def __init__(self, target, wave=0):
-        self.wave = wave
+        self.wave = Channel(wave)
         self.orientation = 0
         super().__init__(target)
         self.can_act_on = [PTPos]
         self.pan_midi = 0
         self.tilt_midi = 0
+        self.offset = PTPos()
 
     def tick(self, counter):
         ms = counter
@@ -128,7 +151,10 @@ class WavePT_EFX(EFX):
         wave_p = wave * math.cos(self.orientation)
         wave_t = wave * math.sin(self.orientation)
 
-        self.target.set_rpos_deg(360 * ((self.pan_midi / 127) - 0.5), 360 * ((self.tilt_midi / 127) - 0.5) + wave)
+        self.target.set_rpos_deg(
+            360 * ((self.pan_midi / 127) - 0.5),
+            360 * ((self.tilt_midi / 127) - 0.5) + wave,
+        )
 
     def set_pan_midi(self, pan):
         self.pan_midi = pan
@@ -140,82 +166,139 @@ class WavePT_EFX(EFX):
         self.wave = wave
 
 
-class Fixture:
-    def __init__(self):
+# fixture is a set of traits, exposed via. __dict__
+# trait is a grouping of channels, each of which exposes a ranged value and
+# can be patched into a DMX universe
+
+
+class Fixture(ABC):
+    def __init__(self, ch=0):
+        self.universe: Optional[int] = None
+        self.base: Optional[int] = None
+        self.ch: int = ch
+
+    @abstractmethod
+    def patch(self, universe: int, base: int, data: UniverseType) -> None:
+        self.universe = universe
+        self.base = base
+
+
+class ChannelProp(ABC):
+    def __init__(self, pos_min=0, pos_max=255, pos=0, units=""):
+        self.pos_min = pos_min
+        self.pos_max = pos_max
+        self.pos = pos
+        self.data = None
+        self.base = 0
+
+    def patch(self, data: UniverseType, base: int):
+        self.data = data
+        self.base = base
+        self.set(self.pos)
+
+    @abstractmethod
+    def set(self, value: int):
         pass
 
-    def write(universe, base, counter):
-        pass
+
+class ByteChannelProp(ChannelProp):
+    def set(self, value: int):
+        self.pos = min(0xFF, max(0, int(value)))
+        if self.data:
+            self.data[self.base] = value
 
 
-class Channel:
-    def __init__(self):
-        self.value = 0
+class FineChannelProp(ChannelProp):
+    def __init__(self, pos_min=0, pos_max=0xFFFF, pos=0, units=""):
+        super().__init__(pos_min=pos_min, pos_max=pos_max, pos=pos)
+
+    def set(self, value: int):
+        self.pos = min(0xFFFF, max(0, int(value)))
+        if self.data:
+            self.data[self.base] = self.pos >> 8
+            self.data[self.base + 1] = self.pos & 0xFF
+
+
+class Channel(Trait):
+    def __init__(self, value=0):
+        self.value = ByteChannelProp(pos=value)
 
     def set(self, value):
-        self.value = value
+        self.value.set(value)
 
-    def as_dmx(self):
-        return self.value
+    def patch(self, data: UniverseType, base: int) -> None:
+        self.value.patch(data, base)
+
 
 class IndexedChannel(Channel):
     pass
 
 
+class OnOffChannel(Trait):
+    def __init__(self, value=0):
+        self.value = ByteChannelProp(pos=value, pos_max=1)
+
+    def set(self, value):
+        self.value.set(value)
+
+    def patch(self, data: UniverseType, base: int) -> None:
+        self.value.patch(data, base)
+
+
 @fixture
 class IbizaMini(Fixture):
     def __init__(self):
+        super().__init__(ch=19)
         self.pos = PTPos()
         self.wash = RGBW()
         self.spot = Channel()
         self.spot_cw = IndexedChannel()
         self.spot_gobo = IndexedChannel()
         self.light_belt = Channel()
-        self.ch = 19
+        self.pt_speed = Channel(value=0)
+        self.global_dimmer = Channel(value=255)
 
-    def write(self, universe, base, counter):
-        universe[base + 0 : base + 4] = self.pos.as_dmx_PPTT()
-        universe[base + 4] = 0  # pan/tilt speed
-        universe[base + 5] = 255  # global dimmer
-        universe[base + 6] = self.spot.as_dmx()
-        universe[base + 7] = self.spot_cw.as_dmx()
-        universe[base + 8] = self.spot_gobo.as_dmx()
-        # RGBW
-        universe[base + 9 : base + 13] = self.wash.as_dmx_RGBW()
-        universe[base + 13] = 0  # strobe
-        universe[base + 14] = 0  # wash effect
-        universe[base + 15] = 0  # auto/sound
-        universe[base + 16] = 0  # effect speed
-        universe[base + 17] = 0  # PT control
-        universe[base + 18] = self.light_belt.as_dmx()
+    def patch(self, universe: int, base: int, data: UniverseType) -> None:
+        super().patch(universe, base, data)
+        self.pos.patch(data, base + 0)
+        self.pt_speed.patch(data, base + 4)
+        self.global_dimmer.patch(data, base + 5)
+        self.spot.patch(data, base + 6)
+        self.spot_cw.patch(data, base + 7)
+        self.spot_gobo.patch(data, base + 8)
+        self.wash.patch(data, base + 9)
+        self.light_belt.patch(data, base + 18)
+
 
 @fixture
 class LedJ7Q5RGBA(Fixture):
     def __init__(self):
+        super().__init__(ch=4)
         self.wash = RGBA()
-        self.ch = 4
 
-    def write(self, universe, base, counter):
-        universe[base + 0 : base + 4] = self.wash.as_dmx_RGBA()
+    def patch(self, universe: int, base: int, data: UniverseType) -> None:
+        super().patch(universe, base, data)
+        self.wash.patch(data, base)
+
 
 class FixtureController:
     def __init__(self, client, update_interval=25):
-        self._update_interval = update_interval
+        self._update_interval: int = update_interval
         self._client = client
-        self.fixtures = []
+        self.fixtures: List[Fixture] = []
         self.pollable = []
         self.efx = []
         self.init = time.time()
         self.frames = 0
-        self.fps = 0
+        self.fps: float = 0
         self.target_fps = 1 / self._update_interval * 1000
-        self.showtime = 0
+        self.showtime: float = 0
         self.universes = {}
         self.blackout = False
         self._blackout_buffer = array("B", [0] * DMX_UNIVERSE_SIZE)
 
     async def run(self):
-        await self._client.connect()
+        self._conn_task = asyncio.create_task(self._client.connect())
 
         while True:
             await self._tick_once()
@@ -229,9 +312,6 @@ class FixtureController:
         for pollable in self.pollable + self.efx:
             pollable.tick(self.showtime)
 
-        for universe, base, fixture in self.fixtures:
-            fixture.write(self.universes[universe], base, self.showtime)
-
         # Send the DMX data
         for universe, data in self.universes.items():
             if self.blackout:
@@ -239,11 +319,24 @@ class FixtureController:
             else:
                 await self._client.set_dmx(universe, data)
 
+    def add_fixture(
+        self,
+        fixture: Fixture,
+        universe: Optional[int] = None,
+        base: Optional[int] = None,
+    ) -> None:
+        self.fixtures.append(fixture)
+        if universe is not None and base is not None:
+            self.patch_fixture(fixture, universe, base)
 
-    def add_fixture(self, universe: int, base: int, fixture: Fixture):
-        self.fixtures.append((universe, base, fixture))
+    def patch_fixture(self, fixture: Fixture, universe=None, base=None):
+        univ = self._get_universe(universe)
+        fixture.patch(universe, base, data=univ)
+
+    def _get_universe(self, universe: int):
         if not universe in self.universes:
             self.universes[universe] = array("B", [0] * DMX_UNIVERSE_SIZE)
+        return self.universes[universe]
 
     def add_efx(self, efx: EFX):
         self.efx.append(efx)
@@ -251,10 +344,9 @@ class FixtureController:
     def add_pollable(self, pollable):
         self.pollable.append(pollable)
 
-    def set_dmx(self, universe, channel, value):
-        if not universe in self.universes:
-            self.universes[universe] = array("B", [0] * DMX_UNIVERSE_SIZE)
-        self.universes[universe][channel] = value
+    def set_dmx(self, universe: int, channel: int, value: int):
+        univ = self._get_universe(universe)
+        univ[channel] = value
 
     def get_dmx(self, universe, channel):
         if self.blackout:
@@ -264,8 +356,8 @@ class FixtureController:
 
     def __repr__(self):
         s = ""
-        for fixture, base, universe in self.fixtures:
-            s = s + f"{universe} {base} {fixture}\n"
+        for fixture in self.fixtures:
+            s = s + f"{fixture.universe} {fixture.base} {fixture}\n"
         s = (
             s
             + f"time={time.time()} showtime={self.showtime} fps={self.fps} target={self.target_fps}"
@@ -304,7 +396,9 @@ class MidiCC:
                     # print(f"Note touch: ch{channel} note {message[1]}")
                     # self.notes_on[message[1]] = message[2]
                 elif message[0] & 0xF0 == POLY_AFTERTOUCH:
-                    print(f"Note touch: ch{channel} note {message[1]} velocity {message[2]}")
+                    print(
+                        f"Note touch: ch{channel} note {message[1]} velocity {message[2]}"
+                    )
                     self.notes_on[message[1]] = message[2]
                 else:
                     print(f"unknown midi event: {msg} {hex(msg[0][0])}")
@@ -323,6 +417,8 @@ class MidiCC:
     # TODO: some sort of auto scaling, ie. bind to a 'pin' rather than a callback fn
     def bind_cc(self, channel, listener):
         self.cc_listeners[channel].append(listener)
+        if not channel in self.cc_last:
+            self.cc_last[channel] = 0
 
 
 def build_show():
@@ -335,11 +431,11 @@ def build_show():
 
     mini = IbizaMini()
     mini2 = IbizaMini()
-    controller.add_fixture(1, 20, mini)
-    controller.add_fixture(1, 40, mini2)
+    controller.add_fixture(mini, 1, 20)
+    controller.add_fixture(mini2, 1, 40)
     controller.add_pollable(banks)
-    controller.add_fixture(1, 85, par1 := LedJ7Q5RGBA())
-    controller.add_fixture(1, 79, par2 := LedJ7Q5RGBA())
+    controller.add_fixture(par1 := LedJ7Q5RGBA(), 1, 85)
+    controller.add_fixture(par2 := LedJ7Q5RGBA(), 1, 79)
 
     # this sets a raw channel value in the DMX universe, it will
     # be overridden by any patched fixture
@@ -350,7 +446,7 @@ def build_show():
     mini.pos.set_rpos_deg(0, 0)
     mini.spot.set(150)
 
-    efx = WavePT_EFX(wave=0, target=mini.pos)
+    efx = WavePT_EFX(wave=10, target=mini.pos)
     controller.add_efx(efx)
 
     par2.wash.set_green(200)

@@ -69,7 +69,6 @@ class Bar(Widget, can_focus=True):
         Binding("pagedown", "page_down", "Decrease value (course)", show=True),
     ]
 
-
     _percentage: reactive[float] = reactive[float](0.0)
     """The percentage of progress that has been completed."""
 
@@ -86,7 +85,6 @@ class Bar(Widget, can_focus=True):
         @property
         def control(self) -> Bar:
             return self.bar
-
 
     def __init__(
         self,
@@ -187,7 +185,7 @@ class FormattedValueLabel(Label):
         id: str | None = None,
         classes: str | None = None,
         disabled: bool = False,
-        formatter: Callable[[int],str] = str,
+        formatter: Callable[[int], str] = str,
     ):
         self.formatter = formatter
         super().__init__(name=name, id=id, classes=classes, disabled=disabled)
@@ -200,7 +198,6 @@ class FormattedValueLabel(Label):
     def watch__label_text(self, label_text: str) -> None:
         """If the ETA label changed, update the renderable (which also refreshes)."""
         self.update(label_text)
-
 
 
 class PositionBar(Widget, can_focus=False):
@@ -231,12 +228,15 @@ class PositionBar(Widget, can_focus=False):
     }
 
     """
+
     class PositionChanged(Message):
         """Posted when the value of the slider changes.
         This message can be handled using an `on_slider_changed` method.
         """
 
-        def __init__(self, bar: PositionBar, position_min: int, position: int, position_max: int) -> None:
+        def __init__(
+            self, bar: PositionBar, position_min: int, position: int, position_max: int
+        ) -> None:
             super().__init__()
             self.position_min: int = position_min
             self.position: int = position
@@ -275,7 +275,7 @@ class PositionBar(Widget, can_focus=False):
         position_min: int,
         position: int,
         position_max: int,
-        formatter: Callable[[int],str] = str,
+        formatter: Callable[[int], str] = str,
         *,
         show_bar: bool = True,
         show_percentage: bool = True,
@@ -324,7 +324,9 @@ class PositionBar(Widget, can_focus=False):
         # We create a closure so that we can determine what are the sub-widgets
         # that are present and, therefore, will need to be notified about changes
         # to the percentage.
-        def update_widget_value(widget: Widget, attrib: str) -> Callable[[float | None], None]:
+        def update_widget_value(
+            widget: Widget, attrib: str
+        ) -> Callable[[float | None], None]:
             """Closure to allow updating the percentage of a given widget."""
 
             def updater(percentage: float | None) -> None:
@@ -335,8 +337,12 @@ class PositionBar(Widget, can_focus=False):
 
         with Horizontal():
             if self.show_range:
-                min_label = FormattedValueLabel(id="label_min", formatter=self.formatter)
-                self.watch(self, "position_min", update_widget_value(min_label, "_value"))
+                min_label = FormattedValueLabel(
+                    id="label_min", formatter=self.formatter
+                )
+                self.watch(
+                    self, "position_min", update_widget_value(min_label, "_value")
+                )
                 yield min_label
             if self.show_bar:
                 bar = Bar(id="bar")
@@ -345,13 +351,21 @@ class PositionBar(Widget, can_focus=False):
             elif self.show_range:
                 yield Label("-", id="label_dash")
             if self.show_range:
-                max_label = FormattedValueLabel(id="label_max", formatter=self.formatter)
-                self.watch(self, "position_max", update_widget_value(max_label, "_value"))
+                max_label = FormattedValueLabel(
+                    id="label_max", formatter=self.formatter
+                )
+                self.watch(
+                    self, "position_max", update_widget_value(max_label, "_value")
+                )
                 yield max_label
 
             if self.show_percentage:
                 percentage_status = PercentageStatus(id="percentage")
-                self.watch(self, "percentage", update_widget_value(percentage_status, "_percentage"))
+                self.watch(
+                    self,
+                    "percentage",
+                    update_widget_value(percentage_status, "_percentage"),
+                )
                 yield percentage_status
             if self.show_value:
                 value_label = FormattedValueLabel(id="value", formatter=self.formatter)
@@ -369,7 +383,9 @@ class PositionBar(Widget, can_focus=False):
         """
         if self.position_min == self.position_max:
             return 0.0
-        return (self.position - self.position_min) / (self.position_max - self.position_min)
+        return (self.position - self.position_min) / (
+            self.position_max - self.position_min
+        )
 
     def adjust(self, adjust: int = 1) -> None:
         """Adjust the value of the position bar by the given amount.
@@ -423,7 +439,12 @@ class PositionBar(Widget, can_focus=False):
         old_position = self.position
         self.position = self.position + event.change
         if self.position != old_position:
-            self.post_message(self.PositionChanged(self, self.position_min, self.position, self.position_max))
+            self.post_message(
+                self.PositionChanged(
+                    self, self.position_min, self.position, self.position_max
+                )
+            )
+
 
 class DemoPositionBar(App[None]):
     BINDINGS = [("r", "reset", "Reset")]
@@ -444,26 +465,61 @@ class DemoPositionBar(App[None]):
             with Middle():
                 yield Label("PositionBar Demo")
                 yield Label("\nFully featured")
-                yield PositionBar(0,1,1, id="hi1f")
-                yield PositionBar(0,100,300, id="hi1")
+                yield PositionBar(0, 1, 1, id="hi1f")
+                yield PositionBar(0, 100, 300, id="hi1")
                 yield Label("\nWith unit formatter")
-                yield PositionBar(-200,300,400, id="hi2", formatter=degrees)
-                yield PositionBar(200,300,400, id="hi3", formatter=pounds)
-                yield PositionBar(0,56,255, id="hi4", formatter=hex)
-                yield PositionBar(0,0,0, id="hi4z")
+                yield PositionBar(-200, 300, 400, id="hi2", formatter=degrees)
+                yield PositionBar(200, 300, 400, id="hi3", formatter=pounds)
+                yield PositionBar(0, 56, 255, id="hi4", formatter=hex)
+                yield PositionBar(0, 0, 0, id="hi4z")
                 yield Label("\nWithout range")
-                yield PositionBar(-200,300,400, id="hi5", formatter=degrees, show_range=False)
+                yield PositionBar(
+                    -200, 300, 400, id="hi5", formatter=degrees, show_range=False
+                )
                 yield Label("\nWithout range, percentage")
-                yield PositionBar(200,300,400, id="hi6", formatter=pounds, show_range=False, show_percentage=False)
+                yield PositionBar(
+                    200,
+                    300,
+                    400,
+                    id="hi6",
+                    formatter=pounds,
+                    show_range=False,
+                    show_percentage=False,
+                )
                 yield Label("\nWithout range, percentage, value")
-                yield PositionBar(20,30,40, id="hi7", show_range=False, show_percentage=False, show_value=False)
+                yield PositionBar(
+                    20,
+                    30,
+                    40,
+                    id="hi7",
+                    show_range=False,
+                    show_percentage=False,
+                    show_value=False,
+                )
 
                 yield Label("\nWithout bar")
-                yield PositionBar(20,30,40, id="hi8", show_range=True, show_percentage=False, show_bar=False)
-                yield PositionBar(20,30,40, id="hi9", show_range=False, show_percentage=False, show_bar=False, formatter=ppmco2)
+                yield PositionBar(
+                    20,
+                    30,
+                    40,
+                    id="hi8",
+                    show_range=True,
+                    show_percentage=False,
+                    show_bar=False,
+                )
+                yield PositionBar(
+                    20,
+                    30,
+                    40,
+                    id="hi9",
+                    show_range=False,
+                    show_percentage=False,
+                    show_bar=False,
+                    formatter=ppmco2,
+                )
                 yield Label("Last value: N/A", id="last_value")
 
-                yield Button('Quit')
+                yield Button("Quit")
 
         yield Footer()
 
@@ -478,7 +534,9 @@ class DemoPositionBar(App[None]):
 
     def action_reset(self) -> None:
         self.query_one("#hi2", PositionBar).update(position=175)
-        self.query_one("#hi3", PositionBar).update(position_max=200, position=175, position_min=50)
+        self.query_one("#hi3", PositionBar).update(
+            position_max=200, position=175, position_min=50
+        )
 
     def on_button_pressed(self, button):
         exit()
@@ -490,4 +548,3 @@ class DemoPositionBar(App[None]):
 
 if __name__ == "__main__":
     DemoPositionBar().run()
-
