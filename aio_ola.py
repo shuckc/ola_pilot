@@ -16,6 +16,8 @@ from ola.proto import (
     Ack,
 )
 
+from typing import Optional
+
 
 class OlaClient:
     def __init__(self, host="localhost", port=9010):
@@ -23,6 +25,7 @@ class OlaClient:
         self._request_counter = itertools.count()
         self._host = host
         self._port = port
+        self._writer: Optional[asyncio.StreamWriter] = None
 
     async def connect(self):
         self._reader, self._writer = await asyncio.open_connection(
@@ -55,6 +58,8 @@ class OlaClient:
         # print(f'sending {len(rpc_bytes)} bytes')
         payload = header + rpc_bytes
         # print(payload)
+        if not self._writer:
+            raise IOError("Stream not connected")
         self._writer.write(payload)
 
         return await fut
@@ -62,8 +67,9 @@ class OlaClient:
     async def _handle_messages(self):
         while True:
             header = await self._reader.readexactly(4)
-            header = struct.unpack("<L", header)[0]
-            version, sz = ((header & 0xF0000000) >> 28, header & 0x0FFFFFF)
+            header_value = struct.unpack("<L", header)[0]
+            version = (header_value & 0xF0000000) >> 28
+            sz = header_value & 0x0FFFFFF
             # print(f'Awaiting version {version} size {sz}')
 
             data = await self._reader.readexactly(sz)
@@ -96,6 +102,8 @@ class OlaClient:
     async def set_dmx(
         self, universe: int = 0, data: bytes = b"\0\0", priority: int = 0
     ):
+        if not self._writer:
+            return
         request = DmxData()
         request.universe = universe
         request.data = data
