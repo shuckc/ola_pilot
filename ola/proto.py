@@ -554,7 +554,7 @@ class OlaServerServiceStub(betterproto.ServiceStub):
         )
 
     async def set_merge_mode(
-        self, *, universe: int = 0, merge_mode: "MergeMode" = 0
+        self, *, universe: int = 0, merge_mode: "MergeMode" = MergeMode.HTP
     ) -> Ack:
         request = MergeModeRequest()
         request.universe = universe
@@ -572,7 +572,7 @@ class OlaServerServiceStub(betterproto.ServiceStub):
         universe: int = 0,
         device_alias: int = 0,
         port_id: int = 0,
-        action: "PatchAction" = 0,
+        action: "PatchAction" = PatchAction.PATCH,
         is_output: bool = False,
     ) -> Ack:
         request = PatchPortRequest()
@@ -589,7 +589,7 @@ class OlaServerServiceStub(betterproto.ServiceStub):
         )
 
     async def register_for_dmx(
-        self, *, universe: int = 0, action: "RegisterAction" = 0
+        self, *, universe: int = 0, action: "RegisterAction" = RegisterAction.REGISTER
     ) -> Ack:
         request = RegisterDmxRequest()
         request.universe = universe
@@ -738,7 +738,7 @@ class OlaServerServiceStub(betterproto.ServiceStub):
         minutes: int = 0,
         seconds: int = 0,
         frames: int = 0,
-        type: "TimeCodeType" = 0,
+        type: "TimeCodeType" = TimeCodeType.TIMECODE_FILM,
     ) -> Ack:
         """timecode"""
 
