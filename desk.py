@@ -146,7 +146,7 @@ class WavePT_EFX(EFX):
         ms = counter
         # wave_p = math.sin(ms) * self.wave
         # magnitude of oscilation
-        wave = math.cos(ms) * self.wave
+        wave = math.cos(ms) * self.wave.value.pos
         # map to pan and tilt by orientation
         wave_p = wave * math.cos(self.orientation)
         wave_t = wave * math.sin(self.orientation)

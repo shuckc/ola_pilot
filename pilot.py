@@ -19,9 +19,14 @@ from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.binding import Binding
 from textual.widgets._data_table import RowKey
+from textual import log
+from textual import on
+from textual.widget import Widget
 
 from rich.text import Text
 from typing import Optional, List, Dict, Any, Tuple, Callable, TypeVar, Generic
+
+from widgets import PositionBar
 
 from desk import (
     build_show,
@@ -37,6 +42,7 @@ from desk import (
     IndexedChannel,
     Trait,
     OnOffChannel,
+    ChannelProp,
 )
 
 BLACKOUT_DICT = {True: "[BLACKOUT]", False: ""}
@@ -89,7 +95,7 @@ T = TypeVar("T")
 
 class TraitTable(DataTable, Generic[T]):
     def __init__(self, fixtures: List[T], extra_columns: List[str] = ["name"]) -> None:
-        super().__init__()
+        super(TraitTable, self).__init__()
         self.fixtures: List[T] = fixtures
         self.traits: List[str] = []
         self.traits_fmt: Dict[Tuple[str, type], Callable[[int], str]] = {}
@@ -147,12 +153,12 @@ class TraitTable(DataTable, Generic[T]):
 
         row_key = event.cell_key.row_key
         fixture: T = [f for f, rk in self.rk.items() if rk == row_key][0]
-        trait = event.cell_key.column_key.value
-        name = f"{type(fixture).__name__}.{trait}"
-        if trait:
+        trait_name = event.cell_key.column_key.value
+        name = f"{type(fixture).__name__}.{trait_name}"
+        if trait_name:
             try:
-                value = getattr(fixture, trait)
-                self.app.push_screen(EditTraitScreen(name, value), handler)
+                trait = getattr(fixture, trait_name)
+                self.app.push_screen(EditTraitScreen(name, trait), handler)
             except AttributeError:
                 pass
 
@@ -165,11 +171,11 @@ class FixturesTable(TraitTable[Fixture]):
     def __init__(self, fixtures):
         super().__init__(fixtures, ["universe", "base", "ch", "fixture"])
 
-    def _get_basic(self, f: T):
+    def _get_basic(self, f: Fixture):
         return [f.universe, f.base + 1 if f.base else "-", f.ch, type(f).__name__]
 
     def action_add_fixture(self) -> None:
-        self.push_screen(AddFixtureScreen())
+        self.app.push_screen(AddFixtureScreen())
 
 
 class EFXTable(TraitTable[EFX]):
@@ -228,37 +234,82 @@ class MidiInfo(Static):
         self.update(f"Midi\n{self.midi}")
 
 
-class EditTraitScreen(ModalScreen[Optional[int]]):
+class EditTraitScreen(ModalScreen[None]):
     """Edit trait value or cancel editing"""
+
+    DEFAULT_CSS = """
+    EditTraitScreen > Vertical {
+        width: 90;
+        border: heavy yellow;
+        background: $surface;
+        padding: 0 0 0 0;
+    }
+    EditTraitScreen > Vertical > Horizontal > Button {
+        margin: 1;
+    }
+    EditTraitScreen > Vertical > Grid {
+        margin: 0 1 0 1;
+        grid-size: 2;
+        grid-columns: 1fr 3fr;
+        padding: 0 0 0 0;
+    }
+    """
 
     BINDINGS = [
         Binding("escape", "app.pop_screen", "", show=False),
     ]
 
-    def __init__(self, ref, old_value):
+    def __init__(self, ref: str, trait: Trait):
         self.ref = ref
-        self.old_value = str(old_value)
-        super().__init__()
+        self.trait = trait
+        self.ch: Dict[str, ChannelProp] = dict(
+            [
+                (k, ch)
+                for k, ch in self.trait.__dict__.items()
+                if isinstance(ch, ChannelProp)
+            ]
+        )
+        super(EditTraitScreen, self).__init__()
+        self.pos_to_ch: Dict[PositionBar, ChannelProp] = {}
+
+        self.controls: List[Widget] = []
+        for k, ch in self.ch.items():
+            self.controls.append(Label(k))
+            self.controls.append(
+                p := PositionBar(
+                    position=ch.pos, position_max=ch.pos_max, position_min=ch.pos_min
+                )
+            )
+            self.pos_to_ch[p] = ch
 
     def compose(self) -> ComposeResult:
         g = Grid(
             Label("Fixture"),
             Label(self.ref),
-            Label("Value"),
-            Input(self.old_value),
-            Button("Set", variant="primary", id="quit"),
-            Button("Cancel", variant="default", id="cancel"),
-            id="dialog3",
+            *self.controls,
         )
-        yield g
-        g.border_title = "Set value"
+        v = Vertical(
+            g,
+            Horizontal(
+                Button("Set", variant="primary", id="quit"),
+                Button("Cancel", variant="default", id="cancel"),
+            ),
+        )
+        yield v
+        v.border_title = "Set value"
+        dh = len(self.ch)
+        g.styles.height = 1 + dh
+        v.styles.height = 3 + 4 + dh
+
+    @on(PositionBar.PositionChanged)
+    def on_position_changed(self, event):
+        # self.query_one("#last_value", Label).update(f"Last value: {event}")
+        self.pos_to_ch[event.bar].set(event.position)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "quit":
-            self.dismiss(None)
-        else:
-            self.dismiss(int(self.old_value))
-        # self.app.pop_screen()
+        # if event.button.id == "quit":
+        #    self.dismiss(None)
+        self.dismiss(None)
 
 
 class QuitScreen(ModalScreen):

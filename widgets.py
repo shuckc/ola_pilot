@@ -10,6 +10,7 @@ from textual.binding import Binding
 from textual.message import Message
 from textual import on
 
+from dataclasses import dataclass
 from math import ceil
 from time import monotonic
 from typing import Callable, Optional
@@ -229,26 +230,16 @@ class PositionBar(Widget, can_focus=False):
 
     """
 
+    @dataclass
     class PositionChanged(Message):
         """Posted when the value of the slider changes.
         This message can be handled using an `on_slider_changed` method.
         """
 
-        def __init__(
-            self, bar: PositionBar, position_min: int, position: int, position_max: int
-        ) -> None:
-            super().__init__()
-            self.position_min: int = position_min
-            self.position: int = position
-            self.position_max: int = position_max
-            self.bar: PositionBar = bar
-
-        @property
-        def control(self) -> PositionBar:
-            return self.bar
-
-        def __str__(self):
-            return f"PositionChanged({self.position_min},{self.position},{self.position_max})"
+        bar: PositionBar
+        position_min: int
+        position: int
+        position_max: int
 
     """The progress so far, in number of steps."""
     position: reactive[int] = reactive(0)
