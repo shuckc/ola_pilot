@@ -1,6 +1,6 @@
 import pytest
 from array import array
-from desk import FixtureController, RGB, Fixture
+from desk import FixtureController, RGB, RGBW, RGBA, Fixture
 
 
 class TestClient:
@@ -52,6 +52,36 @@ def test_trait():
     # setters write through to the universe once patched
     r.red.set(1)
     assert u[5] == 1
+
+def test_rgbw_downsample():
+    r = RGBW()
+    r.white.set(255)
+    assert r.get_hex() == "#FFFFFF"
+
+    r.red.set(0)
+    r.green.set(0)
+    r.blue.set(255)
+    assert r.get_hex() == "#FFFFFF"
+
+    r.white.set(128)
+    assert r.get_hex() == "#8080FF"
+
+
+def test_rgba_downsample():
+    r = RGBA()
+    r.amber.set(255)
+    assert r.get_hex() == "#FFBF00"
+
+    r.red.set(255)
+    r.green.set(255)
+    r.blue.set(255)
+    assert r.get_hex() == "#FFBF00"
+
+    r.red.set(255)
+    r.green.set(191)
+    r.blue.set(0)
+    r.amber.set(0)
+    assert r.get_hex() == "#FFBF00"
 
 
 def test_fixture_unpatched():

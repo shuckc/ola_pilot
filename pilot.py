@@ -189,7 +189,7 @@ class EFXTable(TraitTable[EFX]):
 
 
 def fmt_colour(rgb):
-    t = f"{rgb.red.pos:3} {rgb.green.pos:3} {rgb.blue.pos:3}"
+    t = f"⬤{rgb.red.pos:3} {rgb.green.pos:3} {rgb.blue.pos:3}"
     return Text(t, style=rgb.get_hex(), justify="right")
 
 

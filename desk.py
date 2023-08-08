@@ -63,8 +63,12 @@ class RGB(Trait):
     def set_blue(self, blue):
         self.blue.set(blue)
 
+    def get_approx_rgb(self):
+        return self.red.pos, self.green.pos, self.blue.pos
+
     def get_hex(self):
-        return f"#{self.red.pos:02X}{self.green.pos:02X}{self.blue.pos:02X}"
+        r,g,b = self.get_approx_rgb()
+        return f"#{r:02X}{g:02X}{b:02X}"
 
     def patch(self, data: UniverseType, base: int) -> None:
         self.red.patch(data, base + 0)
@@ -84,6 +88,12 @@ class RGBW(RGB):
     def set_white(self, white):
         self.white.set(white)
 
+    def get_approx_rgb(self):
+        r,g,b = super().get_approx_rgb()
+        w = self.white.pos
+        # scale down rgb components by w intensity, and add w to all channels equally
+        return int(r * (255 - w) / 255 + w), int(g * (255 - w)/255 + w), int(b * (255 - w)/255 + w)
+
 
 class RGBA(RGB):
     def __init__(self):
@@ -96,6 +106,12 @@ class RGBA(RGB):
     def patch(self, data: UniverseType, base: int) -> None:
         super().patch(data, base)
         self.amber.patch(data, base + 3)
+
+    def get_approx_rgb(self):
+        r,g,b = super().get_approx_rgb()
+        a = self.amber.pos
+        # scale down rgb components by amber intensity, and add a weighted by 255,191,0 (#FFBF00) to channels
+        return int(r * (255 - a)/255 + a), int(g * (255 - a)/255 + a*(191/255)), int(b * (255 - a)/255)
 
 
 class PTPos(Trait):
