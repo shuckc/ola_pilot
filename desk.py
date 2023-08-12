@@ -18,133 +18,21 @@ from functools import partial
 from collections import defaultdict
 from typing import Optional, TypeAlias, List, MutableSequence
 
+from fx import PerlinNoiseEFX
+from registration import (
+    register_efx,
+    fixture,
+    fixture_class_list,
+    efx_class_list,
+    Fixture,
+    EFX,
+)
+from channel import ByteChannelProp, FineChannelProp, UniverseType
+from trait import OnOffChannel, PTPos, RGBW, RGBA, RGB, Channel, Trait, IndexedChannel
+
+from fixtures import IbizaMini, LedJ7Q5RGBA
+
 DMX_UNIVERSE_SIZE = 512
-
-UniverseType: TypeAlias = MutableSequence[int]
-
-
-fixture_class_list = []
-
-
-def fixture(wrapped):
-    fixture_class_list.append(wrapped)
-    return wrapped
-
-
-efx_class_list = []
-
-
-def register_efx(wrapped):
-    efx_class_list.append(wrapped)
-    return wrapped
-
-
-class Trait(ABC):
-    @abstractmethod
-    def patch(self, data: UniverseType, base: int) -> None:
-        pass
-
-
-# https://blog.saikoled.com/post/44677718712/how-to-convert-from-hsi-to-rgb-white
-class RGB(Trait):
-    def __init__(self):
-        self.red = ByteChannelProp()
-        self.green = ByteChannelProp()
-        self.blue = ByteChannelProp()
-
-    def set_red(self, red):
-        # TODO ?
-        # from HSV?
-        self.red.set(red)
-
-    def set_green(self, green):
-        self.green.set(green)
-
-    def set_blue(self, blue):
-        self.blue.set(blue)
-
-    def get_approx_rgb(self):
-        return self.red.pos, self.green.pos, self.blue.pos
-
-    def get_hex(self):
-        r,g,b = self.get_approx_rgb()
-        return f"#{r:02X}{g:02X}{b:02X}"
-
-    def patch(self, data: UniverseType, base: int) -> None:
-        self.red.patch(data, base + 0)
-        self.green.patch(data, base + 1)
-        self.blue.patch(data, base + 2)
-
-
-class RGBW(RGB):
-    def __init__(self):
-        super().__init__()
-        self.white = ByteChannelProp()
-
-    def patch(self, data: UniverseType, base: int) -> None:
-        super().patch(data, base)
-        self.white.patch(data, base + 3)
-
-    def set_white(self, white):
-        self.white.set(white)
-
-    def get_approx_rgb(self):
-        r,g,b = super().get_approx_rgb()
-        w = self.white.pos
-        # scale down rgb components by w intensity, and add w to all channels equally
-        return int(r * (255 - w) / 255 + w), int(g * (255 - w)/255 + w), int(b * (255 - w)/255 + w)
-
-
-class RGBA(RGB):
-    def __init__(self):
-        super().__init__()
-        self.amber = ByteChannelProp()
-
-    def set_amber(self, amber):
-        self.amber.set(amber)
-
-    def patch(self, data: UniverseType, base: int) -> None:
-        super().patch(data, base)
-        self.amber.patch(data, base + 3)
-
-    def get_approx_rgb(self):
-        r,g,b = super().get_approx_rgb()
-        a = self.amber.pos
-        # scale down rgb components by amber intensity, and add a weighted by 255,191,0 (#FFBF00) to channels
-        return int(r * (255 - a)/255 + a), int(g * (255 - a)/255 + a*(191/255)), int(b * (255 - a)/255)
-
-
-class PTPos(Trait):
-    def __init__(self, pan_range=540, tilt_range=180):
-        # self._data = array("B", [0] * 4)
-        self._pan_range = pan_range
-        self._tilt_range = tilt_range
-        self.pan = FineChannelProp()
-        self.tilt = FineChannelProp()
-
-    def set_rpos_deg(self, pan, tilt):
-        # arguments in degress relative to straight down
-        pan = 0xFFFF * (0.5 + (pan / self._pan_range))
-        tilt = 0xFFFF * (0.5 + (tilt / self._tilt_range))
-        self.set_pos(pan, tilt)
-
-    def set_pos(self, pan, tilt):
-        self.pan.set(pan)
-        self.tilt.set(tilt)
-
-    def patch(self, data: UniverseType, base: int) -> None:
-        self.pan.patch(data, base + 0)
-        self.tilt.patch(data, base + 2)
-
-
-class EFX:
-    def __init__(self, target):
-        self.enabled = OnOffChannel()
-        self.target = target
-        self.can_act_on = [Trait]
-
-    def tick(self, counter):
-        pass
 
 
 @register_efx
@@ -180,121 +68,6 @@ class WavePT_EFX(EFX):
 
     def set_wave_deg(self, wave):
         self.wave = wave
-
-
-# fixture is a set of traits, exposed via. __dict__
-# trait is a grouping of channels, each of which exposes a ranged value and
-# can be patched into a DMX universe
-
-
-class Fixture(ABC):
-    def __init__(self, ch=0):
-        self.universe: Optional[int] = None
-        self.base: Optional[int] = None
-        self.ch: int = ch
-
-    @abstractmethod
-    def patch(self, universe: int, base: int, data: UniverseType) -> None:
-        self.universe = universe
-        self.base = base
-
-
-class ChannelProp(ABC):
-    def __init__(self, pos_min=0, pos_max=255, pos=0, units=""):
-        self.pos_min = pos_min
-        self.pos_max = pos_max
-        self.pos = pos
-        self.data = None
-        self.base = 0
-
-    def patch(self, data: UniverseType, base: int):
-        self.data = data
-        self.base = base
-        self.set(self.pos)
-
-    @abstractmethod
-    def set(self, value: int):
-        pass
-
-
-class ByteChannelProp(ChannelProp):
-    def set(self, value: int):
-        self.pos = min(0xFF, max(0, int(value)))
-        if self.data:
-            self.data[self.base] = value
-
-
-class FineChannelProp(ChannelProp):
-    def __init__(self, pos_min=0, pos_max=0xFFFF, pos=0, units=""):
-        super().__init__(pos_min=pos_min, pos_max=pos_max, pos=pos)
-
-    def set(self, value: int):
-        self.pos = min(0xFFFF, max(0, int(value)))
-        if self.data:
-            self.data[self.base] = self.pos >> 8
-            self.data[self.base + 1] = self.pos & 0xFF
-
-
-class Channel(Trait):
-    def __init__(self, value=0):
-        self.value = ByteChannelProp(pos=value)
-
-    def set(self, value):
-        self.value.set(value)
-
-    def patch(self, data: UniverseType, base: int) -> None:
-        self.value.patch(data, base)
-
-
-class IndexedChannel(Channel):
-    pass
-
-
-class OnOffChannel(Trait):
-    def __init__(self, value=0):
-        self.value = ByteChannelProp(pos=value, pos_max=1)
-
-    def set(self, value):
-        self.value.set(value)
-
-    def patch(self, data: UniverseType, base: int) -> None:
-        self.value.patch(data, base)
-
-
-@fixture
-class IbizaMini(Fixture):
-    def __init__(self):
-        super().__init__(ch=19)
-        self.pos = PTPos()
-        self.wash = RGBW()
-        self.spot = Channel()
-        self.spot_cw = IndexedChannel()
-        self.spot_gobo = IndexedChannel()
-        self.light_belt = Channel()
-        self.pt_speed = Channel(value=0)
-        self.global_dimmer = Channel(value=255)
-
-    def patch(self, universe: int, base: int, data: UniverseType) -> None:
-        super().patch(universe, base, data)
-        self.pos.patch(data, base + 0)
-        self.pt_speed.patch(data, base + 4)
-        self.global_dimmer.patch(data, base + 5)
-        self.spot.patch(data, base + 6)
-        self.spot_cw.patch(data, base + 7)
-        self.spot_gobo.patch(data, base + 8)
-        self.wash.patch(data, base + 9)
-        self.light_belt.patch(data, base + 18)
-
-
-@fixture
-class LedJ7Q5RGBA(Fixture):
-    def __init__(self):
-        super().__init__(ch=4)
-        self.wash = RGBA()
-
-    def patch(self, universe: int, base: int, data: UniverseType) -> None:
-        super().patch(universe, base, data)
-        self.wash.patch(data, base)
 
 
 class FixtureController:
@@ -341,6 +114,8 @@ class FixtureController:
         universe: Optional[int] = None,
         base: Optional[int] = None,
     ) -> None:
+        if fixture in self.fixtures:
+            raise ValueError(f"Fixture already registered {fixture}")
         self.fixtures.append(fixture)
         if universe is not None and base is not None:
             self.patch_fixture(fixture, universe, base)
@@ -445,31 +220,39 @@ def build_show():
 
     controller = FixtureController(client, update_interval=25)
 
-    mini = IbizaMini()
+    mini0 = IbizaMini()
+    mini1 = IbizaMini()
     mini2 = IbizaMini()
-    controller.add_fixture(mini, 1, 20)
+    mini3 = IbizaMini()
+
+    controller.add_fixture(mini0, 1, 00)
+    controller.add_fixture(mini1, 1, 20)
     controller.add_fixture(mini2, 1, 40)
+    controller.add_fixture(mini3, 1, 60)
+
     controller.add_pollable(banks)
     controller.add_fixture(par1 := LedJ7Q5RGBA(), 1, 85)
     controller.add_fixture(par2 := LedJ7Q5RGBA(), 1, 79)
+    controller.add_fixture(par3 := LedJ7Q5RGBA(), 1, 85)
+    controller.add_fixture(par4 := LedJ7Q5RGBA(), 1, 90)
 
     # this sets a raw channel value in the DMX universe, it will
     # be overridden by any patched fixture
     controller.set_dmx(1, 0, 128)
 
     # mini.wash.set_red(200)
-    mini.wash.set_green(200)
-    mini.pos.set_rpos_deg(0, 0)
-    mini.spot.set(150)
+    mini0.wash.set_green(200)
+    mini0.pos.set_rpos_deg(0, 0)
+    mini0.spot.set(150)
 
-    efx = WavePT_EFX(wave=10, target=mini.pos)
+    efx = WavePT_EFX(wave=10, target=mini0.pos)
     controller.add_efx(efx)
 
     par2.wash.set_green(200)
 
     banks.bind_cc(70, efx.set_pan_midi)
     banks.bind_cc(71, efx.set_tilt_midi)
-    banks.bind_cc(72, mini.spot.set)
+    banks.bind_cc(72, mini0.spot.set)
     banks.bind_cc(73, efx.set_wave_deg)
 
     # a bus is a subset of traits and fixtures, like a fixture group

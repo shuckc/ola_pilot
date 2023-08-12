@@ -32,18 +32,12 @@ from desk import (
     build_show,
     MidiCC,
     Fixture,
-    fixture_class_list,
     EFX,
-    PTPos,
-    RGB,
-    RGBA,
-    RGBW,
-    Channel,
-    IndexedChannel,
-    Trait,
-    OnOffChannel,
-    ChannelProp,
 )
+from trait import Trait, OnOffChannel, PTPos, RGB, RGBA, RGBW, Channel, IndexedChannel
+from channel import ChannelProp
+from registration import fixture_class_list
+
 
 BLACKOUT_DICT = {True: "[BLACKOUT]", False: ""}
 

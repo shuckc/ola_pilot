@@ -1,7 +1,8 @@
 import pytest
 from array import array
-from desk import FixtureController, RGB, RGBW, RGBA, Fixture
-
+from desk import FixtureController
+from registration import Fixture
+from trait import RGB, RGBW, RGBA
 
 class TestClient:
     async def set_dmx(self, universe, data):
@@ -52,6 +53,7 @@ def test_trait():
     # setters write through to the universe once patched
     r.red.set(1)
     assert u[5] == 1
+
 
 def test_rgbw_downsample():
     r = RGBW()
