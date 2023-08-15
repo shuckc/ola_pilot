@@ -1,4 +1,4 @@
-from trait import PTPos, RGBW, RGBA, Channel, IndexedChannel
+from trait import PTPos, RGBW, RGBA, Channel, IndexedChannel, IntensityChannel
 from channel import UniverseType
 from registration import fixture, Fixture
 
@@ -13,7 +13,7 @@ class IbizaMini(Fixture):
         super().__init__(ch=19)
         self.pos = PTPos()
         self.wash = RGBW()
-        self.spot = Channel()
+        self.spot = IntensityChannel()
         self.spot_cw = IndexedChannel()
         self.spot_gobo = IndexedChannel()
         self.light_belt = Channel()

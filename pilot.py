@@ -34,7 +34,7 @@ from desk import (
     Fixture,
     EFX,
 )
-from trait import Trait, OnOffChannel, PTPos, RGB, RGBA, RGBW, Channel, IndexedChannel
+from trait import Trait, OnOffChannel, PTPos, RGB, RGBA, RGBW, IntensityChannel, Channel, IndexedChannel
 from channel import ChannelProp
 from registration import fixture_class_list
 
@@ -125,8 +125,11 @@ class TraitTable(DataTable, Generic[T]):
         for t in self.traits:
             try:
                 a = getattr(f, t)
-                fmt = self.traits_fmt[(t, type(a))]
-                rowdata.append(fmt(a))
+                if a is None:
+                    rowdata.append("")
+                else:
+                    fmt = self.traits_fmt[(t, type(a))]
+                    rowdata.append(fmt(a))
             except AttributeError:
                 rowdata.append("")
         return rowdata
@@ -136,8 +139,11 @@ class TraitTable(DataTable, Generic[T]):
             for t in self.traits:
                 try:
                     a = getattr(f, t)
-                    fmt = self.traits_fmt[(t, type(a))]
-                    self.update_cell(self.rk[f], t, fmt(a))
+                    if a is None:
+                        pass
+                    else:
+                        fmt = self.traits_fmt[(t, type(a))]
+                        self.update_cell(self.rk[f], t, fmt(a))
                 except AttributeError:
                     pass
 
@@ -196,6 +202,13 @@ def fmt_ch(channel):
     return f"{v:2}%"
 
 
+def fmt_intensity(channel):
+    v = int(channel.value.pos / 255 * 100)
+    rgb = int(channel.value.pos)
+    colourhex = f"#{rgb:02X}{rgb:02X}{rgb:02X}"
+    return Text(f"⬤ {v:2}", style=colourhex)
+
+
 def fmt_idxch(indexed):
     return "open"
 
@@ -211,6 +224,7 @@ TRAIT_FORMATTER_DICT = {
     RGBA: fmt_colour,
     RGBW: fmt_colour,
     Channel: fmt_ch,
+    IntensityChannel: fmt_intensity,
     IndexedChannel: fmt_idxch,
     OnOffChannel: fmt_on_off,
 }

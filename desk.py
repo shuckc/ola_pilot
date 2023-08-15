@@ -255,6 +255,9 @@ def build_show():
     banks.bind_cc(72, mini0.spot.set)
     banks.bind_cc(73, efx.set_wave_deg)
 
+    noise = PerlinNoiseEFX(count=10)
+    controller.add_efx(noise)
+
     # a bus is a subset of traits and fixtures, like a fixture group
     # busses also have an 'enabled' trait.
     # the simplest bus fans out it's trait to all registered fixtures

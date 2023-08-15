@@ -124,6 +124,18 @@ class Channel(Trait):
         self.value.patch(data, base)
 
 
+class IntensityChannel(Channel):
+    def __init__(self, value=0):
+        self.value = ByteChannelProp(pos=value)
+
+    def set(self, value):
+        self.value.set(value)
+
+    def patch(self, data: UniverseType, base: int) -> None:
+        self.value.patch(data, base)
+
+
+
 class IndexedChannel(Channel):
     pass
 
