@@ -40,7 +40,7 @@ from registration import fixture_class_list
 
 
 BLACKOUT_DICT = {True: "[BLACKOUT]", False: ""}
-
+UPDATE_TIMER = 1/10
 
 class ShowtimeDisplay(Static):
     """A widget to display show time, fps"""
@@ -53,7 +53,7 @@ class ShowtimeDisplay(Static):
         self.controller = controller
 
     def on_mount(self) -> None:
-        self.update_timer = self.set_interval(1 / 60, self.update_time)
+        self.update_timer = self.set_interval(UPDATE_TIMER, self.update_time)
 
     def update_time(self) -> None:
         st = self.controller.showtime
@@ -75,7 +75,7 @@ class UniverseDisplay(Static):
         self.data = data
 
     def on_mount(self) -> None:
-        self.update_timer = self.set_interval(1 / 60, self.update_time)
+        self.update_timer = self.set_interval(UPDATE_TIMER, self.update_time)
 
     def update_time(self) -> None:
         st = self.data
@@ -115,7 +115,7 @@ class TraitTable(DataTable, Generic[T]):
             rk = self.add_row(*p)
             self.rk[f] = rk
 
-        self.update_timer = self.set_interval(1 / 10, self.update_time)
+        self.update_timer = self.set_interval(UPDATE_TIMER, self.update_time)
 
     def _get_basic(self, f: T):
         return [type(f).__name__]
@@ -236,7 +236,7 @@ class MidiInfo(Static):
         self.midi = midi
 
     def on_mount(self) -> None:
-        self.update_timer = self.set_interval(1 / 60, self.update_time)
+        self.update_timer = self.set_interval(UPDATE_TIMER, self.update_time)
 
     def update_time(self) -> None:
         self.update(f"Midi\n{self.midi}")

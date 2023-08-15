@@ -90,11 +90,13 @@ class FixtureController:
         self._conn_task = asyncio.create_task(self._client.connect())
 
         while True:
-            await self._tick_once()
-            await asyncio.sleep(self._update_interval / 1000.0)
+            before = time.time()
+            await self._tick_once(before)
+            next_tick = before + self._update_interval / 1000.0
+            await asyncio.sleep(next_tick - time.time())
 
-    async def _tick_once(self):
-        self.showtime = time.time() - self.init
+    async def _tick_once(self, showtime):
+        self.showtime = showtime - self.init
         self.frames += 1
         self.fps = self.frames / self.showtime
 
@@ -147,11 +149,11 @@ class FixtureController:
 
     def __repr__(self):
         s = ""
-        for fixture in self.fixtures:
-            s = s + f"{fixture.universe} {fixture.base} {fixture}\n"
+        #for fixture in self.fixtures:
+        #    s = s + f"{fixture.universe} {fixture.base} {fixture}\n"
         s = (
             s
-            + f"time={time.time()} showtime={self.showtime} fps={self.fps} target={self.target_fps}"
+            + f"showtime={self.showtime} fps={self.fps} target={self.target_fps}"
         )
         return s
 
@@ -274,7 +276,13 @@ async def main():
     print(f"efx: {efx_class_list}")
 
     controller = build_show()
-    print(controller)
+
+    async def print_stats():
+        while True:
+            print(controller)
+            await asyncio.sleep(1.0)
+
+    task = asyncio.create_task(print_stats())
     await controller.run()
 
 
