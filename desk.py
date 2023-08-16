@@ -1,5 +1,7 @@
 from array import array
 import asyncio
+import argparse
+
 import math
 import time
 from abc import ABC, abstractmethod
@@ -148,14 +150,7 @@ class FixtureController:
             return self.universes[universe][channel]
 
     def __repr__(self):
-        s = ""
-        #for fixture in self.fixtures:
-        #    s = s + f"{fixture.universe} {fixture.base} {fixture}\n"
-        s = (
-            s
-            + f"showtime={self.showtime} fps={self.fps} target={self.target_fps}"
-        )
-        return s
+        return f"showtime={self.showtime} fps={self.fps} target={self.target_fps}"
 
 
 class MidiCC:
@@ -215,12 +210,17 @@ class MidiCC:
 
 
 def build_show():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-m", "--midi-in", action="store_true")
+    args = parser.parse_args()
+
     client = OlaClient()
-
-    midiin, port_name = open_midiinput(port="MPK")
-    banks = MidiCC(midiin)
-
     controller = FixtureController(client, update_interval=25)
+
+    if args.midi_in:
+        midiin, port_name = open_midiinput(port="MPK")
+        banks = MidiCC(midiin)
+        controller.add_pollable(banks)
 
     mini0 = IbizaMini()
     mini1 = IbizaMini()
@@ -232,7 +232,6 @@ def build_show():
     controller.add_fixture(mini2, 1, 40)
     controller.add_fixture(mini3, 1, 60)
 
-    controller.add_pollable(banks)
     controller.add_fixture(par1 := LedJ7Q5RGBA(), 1, 85)
     controller.add_fixture(par2 := LedJ7Q5RGBA(), 1, 79)
     controller.add_fixture(par3 := LedJ7Q5RGBA(), 1, 85)
@@ -252,10 +251,11 @@ def build_show():
 
     par2.wash.set_green(200)
 
-    banks.bind_cc(70, efx.set_pan_midi)
-    banks.bind_cc(71, efx.set_tilt_midi)
-    banks.bind_cc(72, mini0.spot.set)
-    banks.bind_cc(73, efx.set_wave_deg)
+    if args.midi_in:
+        banks.bind_cc(70, efx.set_pan_midi)
+        banks.bind_cc(71, efx.set_tilt_midi)
+        banks.bind_cc(72, mini0.spot.set)
+        banks.bind_cc(73, efx.set_wave_deg)
 
     noise = PerlinNoiseEFX(count=10)
     controller.add_efx(noise)
