@@ -25,7 +25,7 @@ from textual.widget import Widget
 
 from rich.text import Text
 from typing import Optional, List, Dict, Any, Tuple, Callable, TypeVar, Generic
-
+import functools
 from widgets import PositionBar
 
 from desk import (
@@ -34,13 +34,24 @@ from desk import (
     Fixture,
     EFX,
 )
-from trait import Trait, OnOffChannel, PTPos, RGB, RGBA, RGBW, IntensityChannel, Channel, IndexedChannel
+from trait import (
+    Trait,
+    OnOffChannel,
+    PTPos,
+    RGB,
+    RGBA,
+    RGBW,
+    IntensityChannel,
+    Channel,
+    IndexedChannel,
+)
 from channel import ChannelProp
 from registration import fixture_class_list
 
 
 BLACKOUT_DICT = {True: "[BLACKOUT]", False: ""}
-UPDATE_TIMER = 1/10
+UPDATE_TIMER = 1 / 10
+
 
 class ShowtimeDisplay(Static):
     """A widget to display show time, fps"""
@@ -115,8 +126,6 @@ class TraitTable(DataTable, Generic[T]):
             rk = self.add_row(*p)
             self.rk[f] = rk
 
-        self.update_timer = self.set_interval(UPDATE_TIMER, self.update_time)
-
     def _get_basic(self, f: T):
         return [type(f).__name__]
 
@@ -128,24 +137,17 @@ class TraitTable(DataTable, Generic[T]):
                 if a is None:
                     rowdata.append("")
                 else:
+                    a.patch_listener(functools.partial(self.mk_listener, f, t))
                     fmt = self.traits_fmt[(t, type(a))]
                     rowdata.append(fmt(a))
             except AttributeError:
                 rowdata.append("")
         return rowdata
 
-    def update_time(self) -> None:
-        for f in self.fixtures:
-            for t in self.traits:
-                try:
-                    a = getattr(f, t)
-                    if a is None:
-                        pass
-                    else:
-                        fmt = self.traits_fmt[(t, type(a))]
-                        self.update_cell(self.rk[f], t, fmt(a))
-                except AttributeError:
-                    pass
+    def mk_listener(self, fixture: T, trait: str, cause: Any):
+        a = getattr(fixture, trait)
+        fmt = self.traits_fmt[(trait, type(a))]
+        self.update_cell(self.rk[fixture], trait, fmt(a))
 
     def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
         def handler(value):
@@ -172,7 +174,12 @@ class FixturesTable(TraitTable[Fixture]):
         super().__init__(fixtures, ["universe", "base", "ch", "fixture"])
 
     def _get_basic(self, f: Fixture):
-        return [f.universe, f.base + 1 if f.base else "-", f.ch, type(f).__name__]
+        return [
+            f.universe,
+            "-" if f.base is None else f.base + 1,
+            f.ch,
+            type(f).__name__,
+        ]
 
     def action_add_fixture(self) -> None:
         self.app.push_screen(AddFixtureScreen())

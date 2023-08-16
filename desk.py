@@ -20,7 +20,7 @@ from functools import partial
 from collections import defaultdict
 from typing import Optional, TypeAlias, List, MutableSequence
 
-from fx import PerlinNoiseEFX
+from fx import PerlinNoiseEFX, ColourInterpolateEFX
 from registration import (
     register_efx,
     fixture,
@@ -259,6 +259,15 @@ def build_show():
 
     noise = PerlinNoiseEFX(count=10)
     controller.add_efx(noise)
+
+    col = ColourInterpolateEFX(count=8)
+    controller.add_efx(col)
+    noise.o0.bind(col.i0)
+    noise.o1.bind(col.i1)
+    noise.o2.bind(col.i2)
+    col.o1.bind(mini3.wash)
+
+    noise.enabled.set(1)
 
     # a bus is a subset of traits and fixtures, like a fixture group
     # busses also have an 'enabled' trait.

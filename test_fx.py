@@ -1,6 +1,7 @@
 from fx import perlin
 import pytest
 
+
 def test_perlin():
     assert perlin(0, 0, 0) == 0
     assert perlin(0, 1, 0) == 0

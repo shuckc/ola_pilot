@@ -3,6 +3,9 @@ from array import array
 from desk import FixtureController
 from registration import Fixture
 from trait import RGB, RGBW, RGBA
+import itertools
+import traceback
+
 
 class TestClient:
     async def set_dmx(self, universe, data):
@@ -37,9 +40,10 @@ async def test_fixture():
 
 def test_trait():
     r = RGB()
-    r.red.set(255)
+    r.set_red(255)
+
     assert r.get_hex() == "#FF0000"
-    r.green.set(127)
+    r.set_green(127)
     assert r.get_hex() == "#FF7F00"
 
     u = make_test_universe()
@@ -51,8 +55,34 @@ def test_trait():
     assert u[8] == 0
 
     # setters write through to the universe once patched
-    r.red.set(1)
+    r.set_red(1)
     assert u[5] == 1
+
+
+def test_changed_hook():
+    c = itertools.count()
+
+    def changed(thing):
+        # traceback.print_stack(limit=5)
+        next(c)
+
+    r = RGB()
+    assert len(r._listeners) == 0
+    assert len(r.red._listeners) == 1  # trait listens to channel
+    r.patch_listener(changed)
+    assert len(r._listeners) == 1  # we are listening to trait
+    r.set_red(255)
+    r.set_green(127)
+    assert next(c) == 2
+
+
+def test_trait_bind():
+    r = RGB()
+    r2 = RGB()
+    r.bind(r2)
+
+    r.set_red(60)
+    assert r2.red.pos == 60
 
 
 def test_rgbw_downsample():
