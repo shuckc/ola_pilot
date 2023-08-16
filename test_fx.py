@@ -1,9 +1,9 @@
 from fx import perlin
-
+import pytest
 
 def test_perlin():
-    assert perlin(0, 0, 0) == 0.5
-    assert perlin(0, 1, 0) == 0.5
-    assert perlin(0, 0, 1) == 0.5
-    assert perlin(0, 0, 2.1) == 0.496148
-    assert perlin(0, 0, 2.2) == 0.476832
+    assert perlin(0, 0, 0) == 0
+    assert perlin(0, 1, 0) == 0
+    assert perlin(0, 0, 1) == 0
+    assert perlin(0, 0, 2.1) == pytest.approx(-0.007704)
+    assert perlin(0, 0, 2.2) == pytest.approx(-0.046336)

@@ -21,7 +21,7 @@ async def test_fixture():
     assert 1 in controller.universes
     assert controller.blackout == False
     assert controller.frames == 0
-    await controller._tick_once()
+    await controller._tick_once(0)
 
     assert controller.frames == 1
     # check our manually patched value
