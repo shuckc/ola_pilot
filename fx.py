@@ -84,9 +84,14 @@ def perlin(x: float, y: float, z: float) -> float:
     x2 = lerp(grad(abb, xf, yf - 1, zf - 1), grad(bbb, xf - 1, yf - 1, zf - 1), u)
     y2 = lerp(x1, x2, v)
 
-    # For convenience we bound it to 0 - 1 (theoretical min/max before is -1 - 1)
-    return (lerp(y1, y2, w) + 1) / 2
+    return lerp(y1, y2, w)
 
+def perlin01(x: float, y: float, z: float) -> float:
+    # For convenience bound to 0 - 1
+    # see https://digitalfreepen.com/2017/06/20/range-perlin-noise.html
+    # 3D noise -sqrt(0.75) - sqrt(0.75)
+    p = (perlin(x,y,z) + math.sqrt(3/4)) / (2*math.sqrt(3/4))
+    return max(0, min(1, p))
 
 def grad(hash: int, x: float, y: float, z: float) -> float:
     # Take the hashed value and take the first 4 bits of it (15 == 0b1111)
@@ -137,20 +142,27 @@ class PerlinNoiseEFX(EFX):
             setattr(self, f"o{i}", o)
 
     def tick(self, counter):
-        ms = counter
-        # map to pan and tilt by orientation
+        # plasma.js scales the 2D grid of fixtures to fit a unit square, then scales
+        # it back to a user editable total size, called 'scale'. So adding a fixture
+        # *reduces* the effective scale, which doesn't seem right.
+        # I've just mapped the coordinates as position, equivelent to scale=w or h
+        # The output of perlin lies between -sqrt(0.5) and +sqrt(0.5)
         z = counter
         for i in range(self._count):
-            self._outputs[i].set(int(256*perlin(i, 0, z)))
+            self._outputs[i].set(int(256*perlin01(i, 1, z)))
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import numpy as np
-
+    import pandas as pd
     # Generate some data...
-    x, y = np.meshgrid(np.linspace(0, 10, num=500), np.linspace(0, 10, num=500))
-    z = np.vectorize(perlin)(x, y, 0)
+    for z in range(10):
+        x, y = np.meshgrid(np.linspace(0, 10, num=500), np.linspace(0, 10, num=500))
+        z = np.vectorize(perlin)(x, y, z)
+        print(pd.DataFrame(z.ravel()).describe())
+
     # Plot the grid
+
     plt.imshow(z)
     plt.gray()
     plt.show()
