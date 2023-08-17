@@ -1,53 +1,42 @@
 import asyncio
-
-from textual.app import App, ComposeResult
-from textual.widgets import (
-    Button,
-    Footer,
-    Header,
-    Static,
-    DataTable,
-    Label,
-    OptionList,
-    Input,
-    Switch,
-    Checkbox,
-    Select,
-)
-from textual.containers import ScrollableContainer, Grid, Horizontal, Vertical
-from textual.reactive import reactive
-from textual.screen import ModalScreen
-from textual.binding import Binding
-from textual.widgets._data_table import RowKey
-from textual import log
-from textual import on
-from textual.widget import Widget
+import functools
+from typing import Any, Callable, Dict, Generic, List, Tuple, TypeVar
 
 from rich.text import Text
-from typing import Optional, List, Dict, Any, Tuple, Callable, TypeVar, Generic
-import functools
-from widgets import PositionBar
-
-from desk import (
-    build_show,
-    MidiCC,
-    Fixture,
-    EFX,
+from textual import on
+from textual.app import App, ComposeResult
+from textual.binding import Binding
+from textual.containers import Grid, Horizontal, ScrollableContainer, Vertical
+from textual.screen import ModalScreen
+from textual.widget import Widget
+from textual.widgets import (
+    Button,
+    Checkbox,
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    Label,
+    Select,
+    Static,
 )
+from textual.widgets._data_table import RowKey
+
+from channel import ChannelProp
+from desk import EFX, Fixture, MidiCC, build_show
+from registration import fixture_class_list
 from trait import (
-    Trait,
-    OnOffChannel,
-    PTPos,
     RGB,
     RGBA,
     RGBW,
-    IntensityChannel,
     Channel,
     IndexedChannel,
+    IntensityChannel,
+    OnOffChannel,
+    PTPos,
+    Trait,
 )
-from channel import ChannelProp
-from registration import fixture_class_list
-
+from widgets import PositionBar
 
 BLACKOUT_DICT = {True: "[BLACKOUT]", False: ""}
 UPDATE_TIMER = 1 / 10
@@ -71,7 +60,8 @@ class ShowtimeDisplay(Static):
         minutes, seconds = divmod(st, 60)
         hours, minutes = divmod(minutes, 60)
         self.update(
-            f"Showtime {hours:02,.0f}:{minutes:02.0f}:{seconds:05.2f} fps {self.controller.fps:02.0f}/{self.controller.target_fps:02.0f}  {BLACKOUT_DICT[self.controller.blackout]}"
+            f"Showtime {hours:02,.0f}:{minutes:02.0f}:{seconds:05.2f} fps "
+            + f"{self.controller.fps:02.0f}/{self.controller.target_fps:02.0f}  {BLACKOUT_DICT[self.controller.blackout]}"
         )
 
 

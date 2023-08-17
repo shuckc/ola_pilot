@@ -1,13 +1,8 @@
-import math
-import time
-from abc import ABC, abstractmethod
-
-from typing import Optional, TypeAlias, List, MutableSequence, Callable, Any
-
-from channel import ByteChannelProp, FineChannelProp, UniverseType, Observable
-
 import functools
-import itertools
+from abc import ABC, abstractmethod
+from typing import Any, List
+
+from channel import ByteChannelProp, FineChannelProp, Observable, UniverseType
 
 
 class Trait(Observable, ABC):
@@ -36,8 +31,7 @@ class RGB(Trait):
         self.blue.patch_listener(self._changed)
 
     def set_red(self, red):
-        # TODO ?
-        # from HSV?
+        # TODO value from HSV or HSI
         self.red.set(red)
 
     def set_green(self, green):

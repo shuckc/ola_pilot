@@ -1,5 +1,6 @@
-from fx import perlin
 import pytest
+
+from fx import perlin
 
 
 def test_perlin():

@@ -1,6 +1,6 @@
-from trait import PTPos, RGBW, RGBA, Channel, IndexedChannel, IntensityChannel
 from channel import UniverseType
-from registration import fixture, Fixture
+from registration import Fixture, fixture
+from trait import RGBA, RGBW, Channel, IndexedChannel, IntensityChannel, PTPos
 
 # fixture is a set of traits, exposed via. __dict__
 # trait is a grouping of channels, each of which exposes a ranged value and

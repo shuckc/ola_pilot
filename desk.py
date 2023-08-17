@@ -1,38 +1,26 @@
-from array import array
-import asyncio
 import argparse
-
+import asyncio
 import math
 import time
-from abc import ABC, abstractmethod
+from array import array
+from collections import defaultdict
+from typing import List, Optional
+
+from rtmidi.midiconstants import (
+    CHANNEL_AFTERTOUCH,
+    CONTROLLER_CHANGE,
+    NOTE_OFF,
+    NOTE_ON,
+    POLY_AFTERTOUCH,
+    PROGRAM_CHANGE,
+)
+from rtmidi.midiutil import open_midiinput
 
 from aio_ola import OlaClient
-from rtmidi.midiutil import open_midiinput
-from rtmidi.midiconstants import (
-    NOTE_ON,
-    NOTE_OFF,
-    PROGRAM_CHANGE,
-    CONTROLLER_CHANGE,
-    POLY_AFTERTOUCH,
-    CHANNEL_AFTERTOUCH,
-)
-from functools import partial
-from collections import defaultdict
-from typing import Optional, TypeAlias, List, MutableSequence
-
-from fx import PerlinNoiseEFX, ColourInterpolateEFX
-from registration import (
-    register_efx,
-    fixture,
-    fixture_class_list,
-    efx_class_list,
-    Fixture,
-    EFX,
-)
-from channel import ByteChannelProp, FineChannelProp, UniverseType
-from trait import OnOffChannel, PTPos, RGBW, RGBA, RGB, Channel, Trait, IndexedChannel
-
 from fixtures import IbizaMini, LedJ7Q5RGBA
+from fx import ColourInterpolateEFX, PerlinNoiseEFX
+from registration import EFX, Fixture, efx_class_list, fixture_class_list, register_efx
+from trait import Channel, PTPos
 
 DMX_UNIVERSE_SIZE = 512
 
@@ -129,7 +117,7 @@ class FixtureController:
         fixture.patch(universe, base, data=univ)
 
     def _get_universe(self, universe: int):
-        if not universe in self.universes:
+        if universe not in self.universes:
             self.universes[universe] = array("B", [0] * DMX_UNIVERSE_SIZE)
         return self.universes[universe]
 
@@ -146,8 +134,7 @@ class FixtureController:
     def get_dmx(self, universe, channel):
         if self.blackout:
             return 0
-        else:
-            return self.universes[universe][channel]
+        return self.universes[universe][channel]
 
     def __repr__(self):
         return f"showtime={self.showtime} fps={self.fps} target={self.target_fps}"
@@ -205,7 +192,7 @@ class MidiCC:
     # TODO: some sort of auto scaling, ie. bind to a 'pin' rather than a callback fn
     def bind_cc(self, channel, listener):
         self.cc_listeners[channel].append(listener)
-        if not channel in self.cc_last:
+        if channel not in self.cc_last:
             self.cc_last[channel] = 0
 
 

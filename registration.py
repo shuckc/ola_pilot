@@ -1,7 +1,8 @@
-from typing import Optional, List
-from trait import OnOffChannel, Trait
 from abc import ABC, abstractmethod
+from typing import List, Optional
+
 from channel import UniverseType
+from trait import OnOffChannel, Trait
 
 
 class Fixture(ABC):

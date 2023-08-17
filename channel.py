@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Optional, TypeAlias, List, MutableSequence, Callable
+from typing import Any, Callable, List, MutableSequence, TypeAlias
 
+from trait import Trait
 
 UniverseType: TypeAlias = MutableSequence[int]
 
@@ -10,7 +11,7 @@ class Observable:
         self._listeners: List[Callable[[Any], None]] = []
         super().__init__()
 
-    def patch_listener(self, listener: Callable[["Trait"], None]):
+    def patch_listener(self, listener: Callable[[Trait], None]):
         self._listeners.append(listener)
 
     def _changed(self, change_from):

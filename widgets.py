@@ -1,26 +1,20 @@
 from __future__ import annotations
 
-from textual.app import App, ComposeResult, RenderResult
-from textual.containers import Center, Middle, Horizontal
-from textual.timer import Timer
-from textual.widgets import Footer, Label, ProgressBar, Button
-from textual.reactive import reactive
-from textual.renderables.bar import Bar as BarRenderable
-from textual.binding import Binding
-from textual.message import Message
-from textual import on
-
 from dataclasses import dataclass
-from math import ceil
-from time import monotonic
 from typing import Callable, Optional
 
 from rich.style import Style
-
+from textual import on
+from textual.app import App, ComposeResult, RenderResult
+from textual.binding import Binding
+from textual.containers import Center, Horizontal, Middle
 from textual.geometry import clamp
-
+from textual.message import Message
+from textual.reactive import reactive
+from textual.renderables.bar import Bar as BarRenderable
 from textual.timer import Timer
 from textual.widget import Widget
+from textual.widgets import Button, Footer, Label
 
 
 class Bar(Widget, can_focus=True):

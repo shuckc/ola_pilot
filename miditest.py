@@ -1,7 +1,7 @@
-from rtmidi.midiutil import open_midiinput
 import logging
 import sys
-import time
+
+from rtmidi.midiutil import open_midiinput
 
 from desk import MidiCC
 

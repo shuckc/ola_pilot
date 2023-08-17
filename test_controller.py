@@ -1,10 +1,11 @@
-import pytest
+import itertools
 from array import array
+
+import pytest
+
 from desk import FixtureController
 from registration import Fixture
-from trait import RGB, RGBW, RGBA
-import itertools
-import traceback
+from trait import RGB, RGBA, RGBW
 
 
 class TestClient:
@@ -22,7 +23,7 @@ async def test_fixture():
     controller = FixtureController(client, update_interval=25)
     controller.set_dmx(1, 0, 128)
     assert 1 in controller.universes
-    assert controller.blackout == False
+    assert controller.blackout is False
     assert controller.frames == 0
     await controller._tick_once(0)
 
@@ -120,6 +121,7 @@ def test_fixture_unpatched():
     class TestRGBFixture(Fixture):
         def __init__(self):
             self.wash = RGB()
+            super().__init__()
 
         def patch(self, universe, base, data):
             self.wash.patch(data, base)
