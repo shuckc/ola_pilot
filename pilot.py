@@ -250,15 +250,20 @@ class EditTraitScreen(ModalScreen[None]):
         border: heavy yellow;
         background: $surface;
         padding: 0 0 0 0;
+        height: auto;
     }
     EditTraitScreen > Vertical > Horizontal > Button {
         margin: 1;
+    }
+    EditTraitScreen > Vertical > Horizontal {
+        height: auto;
     }
     EditTraitScreen > Vertical > Grid {
         margin: 0 1 0 1;
         grid-size: 2;
         grid-columns: 1fr 3fr;
         padding: 0 0 0 0;
+        height: auto;
     }
     """
 
@@ -304,9 +309,6 @@ class EditTraitScreen(ModalScreen[None]):
         )
         yield v
         v.border_title = "Set value"
-        dh = len(self.ch)
-        g.styles.height = 1 + dh
-        v.styles.height = 3 + 4 + dh
 
     @on(PositionBar.PositionChanged)
     def on_position_changed(self, event):
