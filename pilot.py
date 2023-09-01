@@ -116,6 +116,8 @@ class TraitTable(DataTable, Generic[T]):
             rk = self.add_row(*p)
             self.rk[f] = rk
 
+        self.styles.scrollbar_gutter = "stable"
+
     def _get_basic(self, f: T):
         return [type(f).__name__]
 
