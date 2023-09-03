@@ -52,6 +52,9 @@ class ByteChannelProp(ChannelProp):
 
 
 class FineChannelProp(ChannelProp):
+    def __init__(self):
+        super().__init__(pos_max=0xFFFF)
+
     def set(self, value: int):
         self.pos = min(0xFFFF, max(0, int(value)))
         self._write_dmx()
