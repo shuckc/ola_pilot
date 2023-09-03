@@ -133,9 +133,9 @@ def lerp(a: float, b: float, x: float) -> float:
 
 @register_efx
 class PerlinNoiseEFX(EFX):
-    def __init__(self, target=None, count=0):
+    def __init__(self, count=0):
         self.speed = Channel()
-        super().__init__(target)
+        super().__init__()
         self.can_act_on = [Channel]
         self._count = count
         self._outputs: List[Channel] = []
@@ -163,9 +163,9 @@ class ColourInterpolateEFX(EFX):
     # Abstract  0x5571FF, 0x00FFFF, 0xFF00FF, 0xFFFF00
     # Ocean     0x003AB9, 0x02EAFF
 
-    def __init__(self, target=None, count=0, steps=100):
+    def __init__(self, count=0, steps=100):
         self.speed = Channel()
-        super().__init__(target)
+        super().__init__()
 
         self.c1 = RGB()
         self.c1.set_hex("#FFFF00")

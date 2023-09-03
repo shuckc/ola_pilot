@@ -27,14 +27,15 @@ DMX_UNIVERSE_SIZE = 512
 
 @register_efx
 class WavePT_EFX(EFX):
-    def __init__(self, target, wave=0):
+    def __init__(self, wave=0):
         self.wave = Channel(wave)
         self.orientation = 0
-        super().__init__(target)
+        super().__init__()
         self.can_act_on = [PTPos]
         self.pan_midi = 0
         self.tilt_midi = 0
         self.offset = PTPos()
+        self.o0 = PTPos()
 
     def tick(self, counter):
         ms = counter
@@ -45,7 +46,7 @@ class WavePT_EFX(EFX):
         wave_p = wave * math.cos(self.orientation)
         wave_t = wave * math.sin(self.orientation)
 
-        self.target.set_rpos_deg(
+        self.o0.set_rpos_deg(
             360 * ((self.pan_midi / 127) - 0.5),
             360 * ((self.tilt_midi / 127) - 0.5) + wave,
         )
@@ -233,7 +234,7 @@ def build_show():
     mini0.pos.set_rpos_deg(0, 0)
     mini0.spot.set(150)
 
-    efx = WavePT_EFX(wave=10, target=mini0.pos)
+    efx = WavePT_EFX(wave=10)
     controller.add_efx(efx)
 
     par2.wash.set_green(200)

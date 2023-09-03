@@ -18,9 +18,8 @@ class Fixture(ABC):
 
 
 class EFX:
-    def __init__(self, target):
+    def __init__(self):
         self.enabled = OnOffChannel()
-        self.target = target
         self.can_act_on = [Trait]
 
     def tick(self, counter):
