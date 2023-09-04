@@ -5,6 +5,7 @@ import time
 from array import array
 from collections import defaultdict
 from typing import List, Optional
+import itertools
 
 from rtmidi.midiconstants import (
     CHANNEL_AFTERTOUCH,
@@ -19,7 +20,14 @@ from rtmidi.midiutil import open_midiinput
 from aio_ola import OlaClient
 from fixtures import IbizaMini, LedJ7Q5RGBA
 from fx import ColourInterpolateEFX, PerlinNoiseEFX
-from registration import EFX, Fixture, efx_class_list, fixture_class_list, register_efx
+from registration import (
+    EFX,
+    Fixture,
+    efx_class_list,
+    fixture_class_list,
+    register_efx,
+    ThingWithTraits,
+)
 from trait import Channel, PTPos
 
 DMX_UNIVERSE_SIZE = 512
@@ -76,6 +84,8 @@ class FixtureController:
         self.universes = {}
         self.blackout = False
         self._blackout_buffer = array("B", [0] * DMX_UNIVERSE_SIZE)
+        self.prefix_counter = defaultdict(itertools.count)
+        self.objects_by_name: Dict[str, ThingWithTraits] = {}
 
     async def run(self):
         self._conn_task = asyncio.create_task(self._client.connect())
@@ -101,17 +111,33 @@ class FixtureController:
             else:
                 await self._client.set_dmx(universe, data)
 
+    def _own_and_name(self, thing: ThingWithTraits):
+        # take ownership and provide unique name
+        if thing.name is None:
+            name = type(thing).__name__
+            prefix_count = next(self.prefix_counter[name])
+            uid = f"{name}-{prefix_count}"
+            thing.set_owner_name(self, uid)
+        uid = thing.name
+        self.objects_by_name[uid] = thing
+        return uid
+
     def add_fixture(
         self,
         fixture: Fixture,
         universe: Optional[int] = None,
         base: Optional[int] = None,
-    ) -> None:
+    ) -> str:
         if fixture in self.fixtures:
             raise ValueError(f"Fixture already registered {fixture}")
         self.fixtures.append(fixture)
+
+        uid = self._own_and_name(fixture)
+
         if universe is not None and base is not None:
             self.patch_fixture(fixture, universe, base)
+
+        return uid
 
     def patch_fixture(self, fixture: Fixture, universe=None, base=None):
         univ = self._get_universe(universe)
@@ -122,8 +148,10 @@ class FixtureController:
             self.universes[universe] = array("B", [0] * DMX_UNIVERSE_SIZE)
         return self.universes[universe]
 
-    def add_efx(self, efx: EFX):
+    def add_efx(self, efx: EFX) -> str:
+        uid = self._own_and_name(efx)
         self.efx.append(efx)
+        return uid
 
     def add_pollable(self, pollable):
         self.pollable.append(pollable)

@@ -129,11 +129,16 @@ def test_fixture_unpatched():
     client = TestClient()
     controller = FixtureController(client, update_interval=25)
     f_unpatched = TestRGBFixture()
+    assert f_unpatched.name is None
+    assert f_unpatched.owner is None
 
-    controller.add_fixture(f_unpatched)
+    uid = controller.add_fixture(f_unpatched)
     controller.set_dmx(1, 2, 33)  # check this gets overriden during patching
     assert controller.get_dmx(1, 1) == 0
     assert controller.get_dmx(1, 2) == 33
+    assert uid == "TestRGBFixture-0"
+    assert f_unpatched.owner == controller
+    assert f_unpatched.name == uid
 
     f_unpatched.wash.red.set(128)
     assert f_unpatched.wash.red.pos == 128
@@ -141,3 +146,6 @@ def test_fixture_unpatched():
     controller.patch_fixture(f_unpatched, 1, 1)
     assert controller.get_dmx(1, 1) == 128
     assert controller.get_dmx(1, 2) == 0  # was overridden
+
+    uid2 = controller.add_fixture(TestRGBFixture())
+    assert uid2 == "TestRGBFixture-1"

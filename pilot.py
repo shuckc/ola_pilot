@@ -119,7 +119,7 @@ class TraitTable(DataTable, Generic[T]):
         self.styles.scrollbar_gutter = "stable"
 
     def _get_basic(self, f: T):
-        return [type(f).__name__]
+        return [f.name]
 
     def _get_row_data(self, f: T):
         rowdata = self._get_basic(f)
@@ -148,7 +148,7 @@ class TraitTable(DataTable, Generic[T]):
         row_key = event.cell_key.row_key
         fixture: T = [f for f, rk in self.rk.items() if rk == row_key][0]
         trait_name = event.cell_key.column_key.value
-        name = f"{type(fixture).__name__}.{trait_name}"
+        name = f"{fixture.name}.{trait_name}"
         if trait_name:
             try:
                 trait = getattr(fixture, trait_name)
@@ -170,7 +170,7 @@ class FixturesTable(TraitTable[Fixture]):
             f.universe,
             "-" if f.base is None else f.base + 1,
             f.ch,
-            type(f).__name__,
+            f.name,
         ]
 
     def action_add_fixture(self) -> None:
