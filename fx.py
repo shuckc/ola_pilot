@@ -193,7 +193,8 @@ class ColourInterpolateEFX(EFX):
     def remap_intensity(self, inch, outch, source: Any):
         x = inch.value.pos
         n = self._interp[int(x / 256 * len(self._interp))]
-        n._copy_to(outch, None)
+        if self.enabled.value.pos > 0:
+            n._copy_to(outch, None)
 
     def interpolate(self, control_points):
         o = []
