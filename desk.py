@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import math
+import os
 import time
 from array import array
 from collections import defaultdict
@@ -88,6 +89,7 @@ class FixtureController:
         self.prefix_counter: Dict[str, itertools.count] = defaultdict(itertools.count)
         self.objects_by_name: Dict[str, ThingWithTraits] = {}
         self.presets = {}
+        self.showfile_name: Optional[str] = None
 
     async def run(self):
         self._conn_task = asyncio.create_task(self._client.connect())
@@ -187,6 +189,24 @@ class FixtureController:
 
     def load_preset(self, name: str) -> None:
         self.set_state_from_dict(self.presets[name])
+
+    def load_showfile(self, name: str):
+        nm = os.path.expanduser(name)
+        self.showfile_name = nm
+        try:
+            with open(nm) as f:
+                d = json.loads(f.read())
+            self.presets = d["presets"]
+        except FileNotFoundError:
+            pass
+
+    def save_showfile(self):
+        d = {}
+        d["presets"] = self.presets
+        if self.showfile_name:
+            with open(self.showfile_name, "w") as f:
+                json.dump(d, f, indent=2)
+                f.write("\n")
 
 
 class MidiCC:

@@ -1,6 +1,16 @@
 import asyncio
 import functools
-from typing import Any, Callable, Dict, Generic, List, Tuple, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    List,
+    Tuple,
+    TypeVar,
+    Optional,
+    Iterable,
+)
 
 from rich.text import Text
 from textual import on
@@ -17,6 +27,7 @@ from textual.widgets import (
     Header,
     Input,
     Label,
+    OptionList,
     Select,
     Static,
 )
@@ -321,8 +332,12 @@ class EditTraitScreen(ModalScreen[None]):
         self.dismiss(None)
 
 
-class QuitScreen(ModalScreen):
+class QuitScreen(ModalScreen[bool]):
     """Screen with a dialog to quit."""
+
+    BINDINGS = [
+        Binding("escape", "app.pop_screen", "", show=False),
+    ]
 
     def compose(self) -> ComposeResult:
         yield Grid(
@@ -334,9 +349,71 @@ class QuitScreen(ModalScreen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "quit":
-            self.app.exit()
+            self.dismiss(True)
         else:
-            self.app.pop_screen()
+            self.dismiss(False)
+
+
+class SavePresetScreen(ModalScreen[Optional[str]]):
+    BINDINGS = [
+        Binding("escape", "app.pop_screen", "", show=False),
+    ]
+
+    def __init__(self, last_preset: str):
+        self.last_preset = last_preset
+        super().__init__()
+
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Label("Save preset", id="question"),
+            Input(
+                placeholder="Preset name",
+            ),
+            Horizontal(
+                Button("Save", variant="error", id="save"),
+                Button("Cancel", variant="primary", id="cancel"),
+            ),
+            id="dialog",
+        )
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        self.dismiss(event.value)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "save":
+            self.dismiss(None)
+        else:
+            self.dismiss(None)
+
+
+class LoadPresetScreen(ModalScreen[Optional[str]]):
+    BINDINGS = [
+        Binding("escape", "app.pop_screen", "", show=False),
+    ]
+
+    def __init__(self, choices: List[str], last_preset: str):
+        self.choices = choices
+        self.last_preset = last_preset
+        super().__init__()
+
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Label("Load Preset"),
+            ol := OptionList(
+                *self.choices,
+            ),
+            Button("Cancel", variant="primary", id="cancel"),
+            id="dialog",
+        )
+
+    def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
+        self.dismiss(self.choices[event.option_index])
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "save":
+            self.dismiss(None)
+        else:
+            self.dismiss(None)
 
 
 class AddFixtureScreen(ModalScreen):
@@ -384,6 +461,8 @@ class OlaPilot(App):
         ("d", "toggle_dark", "Toggle dark mode"),
         ("b", "blackout", "Toggle blackout"),
         ("q", "request_quit", "Quit?"),
+        ("s", "save_preset", "Save preset"),
+        ("l", "load_preset", "Load preset"),
     ]
 
     def __init__(
@@ -392,6 +471,7 @@ class OlaPilot(App):
     ) -> None:
         super().__init__()
         self.controller = controller
+        self.last_preset: str = ""
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -412,7 +492,7 @@ class OlaPilot(App):
         )
         yield ShowtimeDisplay(self.controller)
 
-        self.t = asyncio.create_task(controller.run())
+        self.t = asyncio.create_task(self.controller.run())
         self.update_title()
 
     def update_title(self):
@@ -428,10 +508,36 @@ class OlaPilot(App):
 
     def action_request_quit(self) -> None:
         """Action to display the quit dialog."""
-        self.push_screen(QuitScreen())
+
+        def quit_cb(quit: bool):
+            if quit:
+                self.app.exit()
+
+        self.push_screen(QuitScreen(), quit_cb)
+
+    def action_save_preset(self) -> None:
+        def save_preset_cb(name: Optional[str]):
+            if name is not None:
+                self.last_preset = name
+                self.controller.save_preset(name)
+
+        self.push_screen(SavePresetScreen(self.last_preset), save_preset_cb)
+
+    def action_load_preset(self) -> None:
+        def load_preset_cb(name: Optional[str]):
+            if name is not None:
+                self.last_preset = name
+                self.controller.load_preset(name)
+
+        self.push_screen(
+            LoadPresetScreen(list(self.controller.presets.keys()), self.last_preset),
+            load_preset_cb,
+        )
 
 
 if __name__ == "__main__":
     controller = build_show()
     app = OlaPilot(controller)
     app.run()
+    print("finished")
+    controller.save_showfile()

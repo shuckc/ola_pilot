@@ -2,7 +2,13 @@ import functools
 from abc import ABC, abstractmethod
 from typing import Any, List, Iterator, Tuple, Dict
 
-from channel import ByteChannelProp, FineChannelProp, Observable, UniverseType
+from channel import (
+    ByteChannelProp,
+    FineChannelProp,
+    Observable,
+    UniverseType,
+    ChannelProp,
+)
 
 
 class Trait(Observable, ABC):
@@ -18,8 +24,8 @@ class Trait(Observable, ABC):
     def interpolate_to(self, other: "Trait", steps: int) -> List["Trait"]:
         pass
 
-    def get_state_as_dict(self):
-        d = {}
+    def get_state_as_dict(self) -> Dict[str, Any]:
+        d: Dict[str, Any] = {}
         for k, t in self.channel_items():
             t.add_state(k, d)
         return d
