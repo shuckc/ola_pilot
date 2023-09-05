@@ -1,10 +1,11 @@
 import argparse
 import asyncio
+import json
 import math
 import time
 from array import array
 from collections import defaultdict
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import itertools
 
 from rtmidi.midiconstants import (
@@ -84,7 +85,7 @@ class FixtureController:
         self.universes = {}
         self.blackout = False
         self._blackout_buffer = array("B", [0] * DMX_UNIVERSE_SIZE)
-        self.prefix_counter = defaultdict(itertools.count)
+        self.prefix_counter: Dict[str, itertools.count] = defaultdict(itertools.count)
         self.objects_by_name: Dict[str, ThingWithTraits] = {}
 
     async def run(self):
@@ -111,15 +112,15 @@ class FixtureController:
             else:
                 await self._client.set_dmx(universe, data)
 
-    def _own_and_name(self, thing: ThingWithTraits):
+    def _own_and_name(self, thing: ThingWithTraits) -> str:
         # take ownership and provide unique name
-        if thing.name is None:
+        uid = thing.name
+        if uid is None:
             name = type(thing).__name__
             prefix_count = next(self.prefix_counter[name])
             uid = f"{name}-{prefix_count}"
             thing.set_owner_name(self, uid)
-        uid = thing.name
-        self.objects_by_name[uid] = thing
+            self.objects_by_name[uid] = thing
         return uid
 
     def add_fixture(

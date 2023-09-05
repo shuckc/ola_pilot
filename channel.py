@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Callable, List, MutableSequence, TypeAlias
+from typing import Any, Callable, List, MutableSequence, TypeAlias, Optional, Dict, Any
 
 UniverseType: TypeAlias = MutableSequence[int]
 
@@ -9,24 +9,24 @@ class Observable:
         self._listeners: List[Callable[[Any], None]] = []
         super().__init__()
 
-    def patch_listener(self, listener: Callable[["ChannelProp"], None]):
+    def patch_listener(self, listener: Callable[["ChannelProp"], None]) -> None:
         self._listeners.append(listener)
 
-    def _changed(self, change_from: "ChannelProp"):
+    def _changed(self, change_from: "ChannelProp") -> None:
         for l in self._listeners:
             l(change_from)
 
 
 class ChannelProp(Observable, ABC):
-    def __init__(self, pos_min=0, pos_max=255, pos=0, units=""):
+    def __init__(self, pos_min: int = 0, pos_max: int = 255, pos: int = 0, units=""):
         super().__init__()
         self.pos_min = pos_min
         self.pos_max = pos_max
         self.pos = pos
-        self.data = None
+        self.data: Optional[UniverseType] = None
         self.base = 0
 
-    def patch(self, data: UniverseType, base: int):
+    def patch(self, data: UniverseType, base: int) -> None:
         self.data = data
         self.base = base
         self._write_dmx()

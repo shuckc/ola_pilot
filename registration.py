@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Any, Iterator, Tuple, Dict
 
 from channel import UniverseType
 from trait import OnOffChannel, Trait
@@ -10,13 +10,13 @@ class ThingWithTraits:
         self.owner = None
         self.name = None
 
-    def set_owner_name(self, owner: any, name: str):
+    def set_owner_name(self, owner: Any, name: str):
         self.owner = owner
         self.name = name
 
 
 class Fixture(ThingWithTraits, ABC):
-    def __init__(self, ch=0):
+    def __init__(self, ch: int = 0):
         self.universe: Optional[int] = None
         self.base: Optional[int] = None
         self.ch: int = ch

@@ -24,7 +24,7 @@ from textual.widgets._data_table import RowKey
 
 from channel import ChannelProp
 from desk import EFX, Fixture, MidiCC, build_show
-from registration import fixture_class_list
+from registration import fixture_class_list, ThingWithTraits
 from trait import (
     RGB,
     RGBA,
@@ -85,7 +85,7 @@ class UniverseDisplay(Static):
         self.update(f"DMX {self.universe}\n{uhex}")
 
 
-T = TypeVar("T")
+T = TypeVar("T", bound="ThingWithTraits")
 
 
 class TraitTable(DataTable, Generic[T]):

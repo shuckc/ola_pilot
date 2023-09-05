@@ -14,6 +14,7 @@ class Trait(Observable, ABC):
     def bind(self, other: "Trait") -> None:
         pass
 
+    @abstractmethod
     def interpolate_to(self, other: "Trait", steps: int) -> List["Trait"]:
         pass
 
