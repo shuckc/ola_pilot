@@ -14,6 +14,24 @@ class ThingWithTraits:
         self.owner = owner
         self.name = name
 
+    def get_state_as_dict(self):
+        d = {}
+        for k, t in self.trait_items():
+            d[k] = t.get_state_as_dict()
+        return d
+
+    def set_state(self, state: Dict[str, Any]) -> None:
+        d = dict(list(self.trait_items()))
+        for k, t in state.items():
+            tr = d.get(k)
+            if tr is not None:
+                tr.set_state(t)
+
+    def trait_items(self) -> Iterator[Tuple[str, Trait]]:
+        for k, v in self.__dict__.items():
+            if isinstance(v, Trait):
+                yield k, v
+
 
 class Fixture(ThingWithTraits, ABC):
     def __init__(self, ch: int = 0):

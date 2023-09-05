@@ -87,6 +87,7 @@ class FixtureController:
         self._blackout_buffer = array("B", [0] * DMX_UNIVERSE_SIZE)
         self.prefix_counter: Dict[str, itertools.count] = defaultdict(itertools.count)
         self.objects_by_name: Dict[str, ThingWithTraits] = {}
+        self.presets = {}
 
     async def run(self):
         self._conn_task = asyncio.create_task(self._client.connect())
@@ -168,6 +169,24 @@ class FixtureController:
 
     def __repr__(self):
         return f"showtime={self.showtime} fps={self.fps} target={self.target_fps}"
+
+    def get_state_as_dict(self) -> Dict[str, Any]:
+        out = {}
+        for name, t in self.objects_by_name.items():
+            out[name] = t.get_state_as_dict()
+        return out
+
+    def set_state_from_dict(self, state) -> None:
+        for name, t in state.items():
+            obj = self.objects_by_name.get(name)
+            if obj is not None:
+                obj.set_state(t)
+
+    def save_preset(self, name: str) -> None:
+        self.presets[name] = self.get_state_as_dict()
+
+    def load_preset(self, name: str) -> None:
+        self.set_state_from_dict(self.presets[name])
 
 
 class MidiCC:

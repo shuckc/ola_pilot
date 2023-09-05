@@ -39,6 +39,10 @@ class ChannelProp(Observable, ABC):
     def _write_dmx(self):
         pass
 
+    def add_state(self, key: str, d: Dict[str, Any]):
+        if self.pos > self.pos_min:
+            d[key] = self.pos
+
 
 class ByteChannelProp(ChannelProp):
     def set(self, value: int):

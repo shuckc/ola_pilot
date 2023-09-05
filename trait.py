@@ -1,6 +1,6 @@
 import functools
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any, List, Iterator, Tuple, Dict
 
 from channel import ByteChannelProp, FineChannelProp, Observable, UniverseType
 
@@ -17,6 +17,24 @@ class Trait(Observable, ABC):
     @abstractmethod
     def interpolate_to(self, other: "Trait", steps: int) -> List["Trait"]:
         pass
+
+    def get_state_as_dict(self):
+        d = {}
+        for k, t in self.channel_items():
+            t.add_state(k, d)
+        return d
+
+    def set_state(self, data: Dict[str, Any]):
+        d = dict(list(self.channel_items()))
+        for k, t in data.items():
+            tr = d.get(k)
+            if tr is not None:
+                tr.set(t)
+
+    def channel_items(self) -> Iterator[Tuple[str, ChannelProp]]:
+        for k, v in self.__dict__.items():
+            if isinstance(v, ChannelProp):
+                yield k, v
 
 
 # https://blog.saikoled.com/post/44677718712/how-to-convert-from-hsi-to-rgb-white

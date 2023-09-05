@@ -149,3 +149,29 @@ def test_fixture_unpatched():
 
     uid2 = controller.add_fixture(TestRGBFixture())
     assert uid2 == "TestRGBFixture-1"
+
+
+def test_controller_persist():
+    class TestRGBFixture(Fixture):
+        def __init__(self):
+            self.wash = RGB()
+            super().__init__()
+
+        def patch(self, universe, base, data):
+            self.wash.patch(data, base)
+
+    client = TestClient()
+    controller = FixtureController(client, update_interval=25)
+    uid = controller.add_fixture(f := TestRGBFixture())
+    f.wash.red.set(128)
+
+    j = controller.get_state_as_dict()
+    assert j == {"TestRGBFixture-0": {"wash": {"red": 128}}}
+
+    controller.set_state_from_dict({"TestRGBFixture-0": {"wash": {"red": 250}}})
+    assert f.wash.red.pos == 250
+
+    controller.save_preset("red-on")
+    f.wash.red.set(0)
+    controller.load_preset("red-on")
+    assert f.wash.red.pos == 250
