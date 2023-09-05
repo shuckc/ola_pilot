@@ -166,9 +166,9 @@ def test_controller_persist():
     f.wash.red.set(128)
 
     j = controller.get_state_as_dict()
-    assert j == {"TestRGBFixture-0": {"wash": {"red": 128}}}
+    assert j == {"TestRGBFixture-0": {"wash": {"red": 128, "green": 0, "blue": 0}}}
 
-    controller.set_state_from_dict({"TestRGBFixture-0": {"wash": {"red": 250}}})
+    controller.set_state_from_dict({"TestRGBFixture-0": {"wash": {"red": 250, "green": 0, "blue": 0}}})
     assert f.wash.red.pos == 250
 
     controller.save_preset("red-on")

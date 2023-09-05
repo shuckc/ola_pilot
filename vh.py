@@ -36,14 +36,7 @@ def build_show():
     controller.add_fixture(par2 := LedJ7Q5RGBA(), 1, 89)
     controller.add_fixture(par3 := LedJ7Q5RGBA(), 1, 94)
 
-    # this sets a raw channel value in the DMX universe, it will
-    # be overridden by any patched fixture
-    controller.set_dmx(1, 0, 128)
-
-    # mini.wash.set_red(200)
-    mini0.wash.set_green(200)
     mini0.pos.set_rpos_deg(0, 0)
-    mini0.spot.set(150)
 
     efx = WavePT_EFX(wave=10)
     controller.add_efx(efx)
@@ -78,8 +71,6 @@ def build_show():
     col.o5.bind(par2.wash)
     col.o6.bind(mini3.wash)
     col.o7.bind(par3.wash)
-
-    noise.enabled.set(1)
 
     return controller
 

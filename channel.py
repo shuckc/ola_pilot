@@ -40,8 +40,7 @@ class ChannelProp(Observable, ABC):
         pass
 
     def add_state(self, key: str, d: Dict[str, Any]):
-        if self.pos > self.pos_min:
-            d[key] = self.pos
+        d[key] = self.pos
 
 
 class ByteChannelProp(ChannelProp):
