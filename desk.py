@@ -337,9 +337,6 @@ def build_show():
 
 
 async def main():
-    print(f"fixtures: {fixture_class_list}")
-    print(f"efx: {efx_class_list}")
-
     controller = build_show()
 
     async def print_stats():

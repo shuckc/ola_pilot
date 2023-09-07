@@ -51,9 +51,9 @@ class RGB(Trait):
         self.green = ByteChannelProp()
         self.blue = ByteChannelProp()
 
-        self.red.patch_listener(self._changed)
-        self.green.patch_listener(self._changed)
-        self.blue.patch_listener(self._changed)
+        self.red._patch_listener(self._changed)
+        self.green._patch_listener(self._changed)
+        self.blue._patch_listener(self._changed)
 
     def set_red(self, red):
         # TODO value from HSV or HSI
@@ -98,7 +98,8 @@ class RGB(Trait):
     def bind(self, other: Trait):
         if not isinstance(other, RGB):
             raise ValueError()
-        self.patch_listener(functools.partial(self._copy_to, other))
+        super().bind(other)
+        self._patch_listener(functools.partial(self._copy_to, other))
 
     def interpolate_to(self, other: Trait, steps: int):
         if not isinstance(other, RGB):
@@ -120,7 +121,7 @@ class RGBW(RGB):
     def __init__(self):
         super().__init__()
         self.white = ByteChannelProp()
-        self.white.patch_listener(self._changed)
+        self.white._patch_listener(self._changed)
 
     def patch(self, data: UniverseType, base: int) -> None:
         super().patch(data, base)
@@ -144,7 +145,7 @@ class RGBA(RGB):
     def __init__(self):
         super().__init__()
         self.amber = ByteChannelProp()
-        self.amber.patch_listener(self._changed)
+        self.amber._patch_listener(self._changed)
 
     def set_amber(self, amber):
         self.amber.set(amber)
@@ -166,14 +167,13 @@ class RGBA(RGB):
 
 class PTPos(Trait):
     def __init__(self, pan_range=540, tilt_range=180):
-        # self._data = array("B", [0] * 4)
+        super().__init__()
         self._pan_range = pan_range
         self._tilt_range = tilt_range
         self.pan = FineChannelProp()
         self.tilt = FineChannelProp()
-        self.pan.patch_listener(self._changed)
-        self.tilt.patch_listener(self._changed)
-        super().__init__()
+        self.pan._patch_listener(self._changed)
+        self.tilt._patch_listener(self._changed)
 
     def set_rpos_deg(self, pan, tilt):
         # arguments in degress relative to straight down
@@ -196,7 +196,7 @@ class PTPos(Trait):
     def bind(self, other: Trait):
         if not isinstance(other, PTPos):
             raise ValueError()
-        self.patch_listener(functools.partial(self._copy_to, other))
+        self._patch_listener(functools.partial(self._copy_to, other))
 
     def interpolate_to(self, other: Trait, steps: int):
         raise ValueError()
@@ -205,7 +205,7 @@ class PTPos(Trait):
 class Channel(Trait):
     def __init__(self, value=0):
         self.value = ByteChannelProp(pos=value)
-        self.value.patch_listener(self._changed)
+        self.value._patch_listener(self._changed)
         super().__init__()
 
     def set(self, value):
@@ -220,7 +220,7 @@ class Channel(Trait):
     def bind(self, other: Trait):
         if not isinstance(other, Channel):
             raise ValueError()
-        self.patch_listener(functools.partial(self._copy_to, other))
+        self._patch_listener(functools.partial(self._copy_to, other))
 
     def interpolate_to(self, other: Trait, steps: int):
         raise ValueError()
@@ -238,7 +238,7 @@ class IndexedChannel(Channel):
 class OnOffChannel(Trait):
     def __init__(self, value=0):
         self.value = ByteChannelProp(pos=value, pos_max=1)
-        self.value.patch_listener(self._changed)
+        self.value._patch_listener(self._changed)
         super().__init__()
 
     def set(self, value):
@@ -253,7 +253,7 @@ class OnOffChannel(Trait):
     def bind(self, other: Trait):
         if not isinstance(other, OnOffChannel):
             raise ValueError()
-        self.patch_listener(functools.partial(self._copy_to, other))
+        self._patch_listener(functools.partial(self._copy_to, other))
 
     def interpolate_to(self, other: Trait, steps: int):
         raise ValueError()

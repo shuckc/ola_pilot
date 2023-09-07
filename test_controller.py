@@ -70,7 +70,7 @@ def test_changed_hook():
     r = RGB()
     assert len(r._listeners) == 0
     assert len(r.red._listeners) == 1  # trait listens to channel
-    r.patch_listener(changed)
+    r._patch_listener(changed)
     assert len(r._listeners) == 1  # we are listening to trait
     r.set_red(255)
     r.set_green(127)

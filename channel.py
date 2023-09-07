@@ -9,7 +9,7 @@ class Observable:
         self._listeners: List[Callable[[Any], None]] = []
         super().__init__()
 
-    def patch_listener(self, listener: Callable[["ChannelProp"], None]) -> None:
+    def _patch_listener(self, listener: Callable[["ChannelProp"], None]) -> None:
         self._listeners.append(listener)
 
     def _changed(self, change_from: "ChannelProp") -> None:

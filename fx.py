@@ -186,7 +186,7 @@ class ColourInterpolateEFX(EFX):
             och = RGB()
             self._outputs.append(och)
             setattr(self, f"o{i}", och)
-            inch.patch_listener(functools.partial(self.remap_intensity, inch, och))
+            inch._patch_listener(functools.partial(self.remap_intensity, inch, och))
 
         self._interp = self.interpolate([self.c1, self.c2, self.c3, self.c4])
 

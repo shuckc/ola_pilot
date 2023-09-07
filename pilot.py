@@ -140,17 +140,15 @@ class TraitTable(DataTable, Generic[T]):
                 if a is None:
                     rowdata.append("")
                 else:
-                    a.patch_listener(functools.partial(self.mk_listener, f, t))
-                    fmt = self.traits_fmt[(t, type(a))]
-                    rowdata.append(fmt(a))
+                    formatter = self.traits_fmt[(t, type(a))]
+                    a._patch_listener(functools.partial(self.mk_listener, f, t, a, formatter))
+                    rowdata.append(formatter(a))
             except AttributeError:
                 rowdata.append("")
         return rowdata
 
-    def mk_listener(self, fixture: T, trait: str, cause: Any):
-        a = getattr(fixture, trait)
-        fmt = self.traits_fmt[(trait, type(a))]
-        self.update_cell(self.rk[fixture], trait, fmt(a))
+    def mk_listener(self, fixture: T, trait: str, attr: ChannelProp, formatter:Callable[[int], str], cause: Any):
+        self.update_cell(self.rk[fixture], trait, formatter(attr))
 
     def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
         def handler(value):
@@ -454,7 +452,7 @@ class AddFixtureScreen(ModalScreen):
 
 
 class OlaPilot(App):
-    """A Textual app to manage stopwatches."""
+    """A Textual app to manage DMX lighting."""
 
     CSS_PATH = "pilot.css"
     BINDINGS = [
