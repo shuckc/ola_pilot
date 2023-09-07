@@ -77,7 +77,7 @@ def test_changed_hook():
     assert next(c) == 2
 
     g = RGB()
-    g.set_rgb(0,255,0)
+    g.set_rgb(0, 255, 0)
     g._copy_to(r, None)
     assert next(c) == 4
 

@@ -10,7 +10,6 @@ from rtmidi.midiutil import open_midiinput
 
 
 def build_show(args):
-
     client = OlaClient()
     controller = FixtureController(client, update_interval=25)
 
@@ -70,7 +69,7 @@ def build_show(args):
     col.o6.bind(mini3.wash)
     col.o7.bind(par3.wash)
 
-    noise = PerlinNoiseEFX(count=4)
+    noise = PerlinNoiseEFX(count=4, trunc=0.3)
     controller.add_efx(noise)
     noise.o0.bind(mini0.spot)
     noise.o1.bind(mini1.spot)

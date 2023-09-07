@@ -100,6 +100,7 @@ T = TypeVar("T", bound="ThingWithTraits")
 
 EMPTY_TEXT = Text("")
 
+
 class TraitTable(DataTable, Generic[T]):
     def __init__(self, fixtures: List[T], extra_columns: List[str] = ["name"]) -> None:
         super(TraitTable, self).__init__()
@@ -208,6 +209,7 @@ def fmt_colour(rgb: RGB) -> Text:
     # t = f"⬤ {rgb.red.pos:3} {rgb.green.pos:3} {rgb.blue.pos:3}"
     return fmt_hexblob(rgb.get_hex())
 
+
 @functools.lru_cache(maxsize=20000)
 def fmt_hexblob(hexcolour: str) -> Text:
     t = f"⬤ "
@@ -217,12 +219,15 @@ def fmt_hexblob(hexcolour: str) -> Text:
 def fmt_pos(pos: PTPos) -> Text:
     return Text(f"{pos.pan.pos:5} {pos.tilt.pos:5}")
 
+
 def fmt_ch(channel: Channel) -> Text:
     v = int(channel.value.pos / 255 * 100)
     return Text(f"{v:2}%")
 
+
 def fmt_intensity(channel: IntensityChannel) -> Text:
     return fmt_intensity_inner(channel.value.pos)
+
 
 @functools.lru_cache(maxsize=300)
 def fmt_intensity_inner(v: int) -> Text:
@@ -234,16 +239,21 @@ def fmt_intensity_inner(v: int) -> Text:
 
 
 TEXT_OPEN = Text("open")
+
+
 def fmt_idxch(indexed) -> Text:
     return TEXT_OPEN
 
+
 TEXT_ON_OFF = {0: Text("off"), 1: Text("on")}
+
+
 def fmt_on_off(channel) -> Text:
     v = channel.value.pos
     return TEXT_ON_OFF[v]
 
 
-TRAIT_FORMATTER_DICT: Dict[type[Trait],Callable[[Trait],Text]] = {
+TRAIT_FORMATTER_DICT: Dict[type[Trait], Callable[[Trait], Text]] = {
     PTPos: fmt_pos,
     RGB: fmt_colour,
     RGBA: fmt_colour,
@@ -482,8 +492,7 @@ class OlaPilot(App):
     ]
 
     def __init__(
-        self,
-        controller, show_dmx=True, show_efx=True, show_fixtures=True
+        self, controller, show_dmx=True, show_efx=True, show_fixtures=True
     ) -> None:
         super().__init__()
         self.controller = controller
@@ -493,8 +502,6 @@ class OlaPilot(App):
         self.show_fixtures = show_fixtures
 
     def compose(self) -> ComposeResult:
-
-
         contents: List[Widget] = []
         if self.show_dmx:
             for univ, data in self.controller.universes.items():
@@ -508,7 +515,7 @@ class OlaPilot(App):
                 contents.append(MidiInfo(midi))
 
         if self.show_efx:
-          contents.append(EFXTable(self.controller.efx))
+            contents.append(EFXTable(self.controller.efx))
 
         """Create child widgets for the app."""
         yield Header()

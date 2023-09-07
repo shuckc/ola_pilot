@@ -88,11 +88,11 @@ def perlin(x: float, y: float, z: float) -> float:
     return lerp(y1, y2, w)
 
 
-def perlin01(x: float, y: float, z: float) -> float:
-    # For convenience bound to 0 - 1
+def perlin01(x: float, y: float, z: float, trunc: float = math.sqrt(2 / 4)) -> float:
     # see https://digitalfreepen.com/2017/06/20/range-perlin-noise.html
-    # 3D noise -sqrt(0.75) - sqrt(0.75)
-    p = (perlin(x, y, z) + math.sqrt(2 / 4)) / (2 * math.sqrt(2 / 4))
+    # 3D noise -sqrt(0.75) to sqrt(0.75), mean 0
+    # For convenience shift, scale and bound to 0 - 1
+    p = (perlin(x, y, z) + trunc) / (2 * trunc)
     return max(0, min(1, p))
 
 
@@ -133,10 +133,11 @@ def lerp(a: float, b: float, x: float) -> float:
 
 @register_efx
 class PerlinNoiseEFX(EFX):
-    def __init__(self, count=0):
+    def __init__(self, count=0, trunc=math.sqrt(0.5)):
         self.speed = Channel()
         super().__init__()
         self.can_act_on = [Channel]
+        self._trunc = trunc
         self._count = count
         self._outputs: List[Channel] = []
         for i in range(count):
@@ -150,10 +151,10 @@ class PerlinNoiseEFX(EFX):
         # *reduces* the effective scale, which doesn't seem right.
         # I've just mapped the coordinates as position, equivelent to scale=w or h
         # The output of perlin lies between -sqrt(0.5) and +sqrt(0.5)
-        z = counter * (self.speed.value.pos/100.0)
+        z = counter * (self.speed.value.pos / 100.0)
         if self.enabled.value.pos > 0:
             for i in range(self._count):
-                self._outputs[i].set(int(256 * perlin01(i, 1, z)))
+                self._outputs[i].set(int(256 * perlin01(i, 1, z, trunc=self._trunc)))
 
 
 @register_efx
@@ -215,6 +216,7 @@ class StaticColour(EFX):
         if self.enabled.value.pos > 0:
             # forces a refresh of the static value, to overwrite anything previously active
             self.c0._copy_to(self.c0, self)
+
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
