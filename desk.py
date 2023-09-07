@@ -325,14 +325,6 @@ def build_show():
 
     noise.enabled.set(1)
 
-    # a bus is a subset of traits and fixtures, like a fixture group
-    # busses also have an 'enabled' trait.
-    # the simplest bus fans out it's trait to all registered fixtures
-    # Another time-delays the propagation of values along the fixtures
-    # another might export the trait twice as 'start' and 'end' traits and linearly
-    # interpolate the difference
-    # bus1 = ReplicateBus(['wash'], [mini1, mini2, par1, par2])
-    # bus1.wash.set_red(200)
     return controller
 
 
