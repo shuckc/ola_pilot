@@ -53,7 +53,7 @@ class EFX(ThingWithTraits):
         self.can_act_on = [Trait]
         super().__init__()
 
-    def tick(self, counter):
+    def tick(self, counter: int) -> None:
         pass
 
 

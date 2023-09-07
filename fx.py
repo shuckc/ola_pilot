@@ -144,13 +144,13 @@ class PerlinNoiseEFX(EFX):
             self._outputs.append(o)
             setattr(self, f"o{i}", o)
 
-    def tick(self, counter):
+    def tick(self, counter: int) -> None:
         # plasma.js scales the 2D grid of fixtures to fit a unit square, then scales
         # it back to a user editable total size, called 'scale'. So adding a fixture
         # *reduces* the effective scale, which doesn't seem right.
         # I've just mapped the coordinates as position, equivelent to scale=w or h
         # The output of perlin lies between -sqrt(0.5) and +sqrt(0.5)
-        z = counter
+        z = counter * (self.speed.value.pos/100.0)
         if self.enabled.value.pos > 0:
             for i in range(self._count):
                 self._outputs[i].set(int(256 * perlin01(i, 1, z)))
