@@ -12,7 +12,9 @@ class Observable:
     def _patch_listener(self, listener: Callable[["ChannelProp"], None]) -> None:
         self._listeners.append(listener)
 
-    def _changed(self, change_from: "ChannelProp") -> None:
+    def _changed(self, change_from: Any) -> None:
+        if change_from == self:
+            return
         for l in self._listeners:
             l(change_from)
 
@@ -44,10 +46,10 @@ class ChannelProp(Observable, ABC):
 
 
 class ByteChannelProp(ChannelProp):
-    def set(self, value: int):
+    def set(self, value: int, source=None):
         self.pos = min(0xFF, max(0, int(value)))
         self._write_dmx()
-        self._changed(self)
+        self._changed(source)
 
     def _write_dmx(self):
         if self.data:
@@ -58,10 +60,10 @@ class FineChannelProp(ChannelProp):
     def __init__(self):
         super().__init__(pos_max=0xFFFF)
 
-    def set(self, value: int):
+    def set(self, value: int, source=None):
         self.pos = min(0xFFFF, max(0, int(value)))
         self._write_dmx()
-        self._changed(self)
+        self._changed(source)
 
     def _write_dmx(self):
         if self.data:

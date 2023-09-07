@@ -76,6 +76,11 @@ def test_changed_hook():
     r.set_green(127)
     assert next(c) == 2
 
+    g = RGB()
+    g.set_rgb(0,255,0)
+    g._copy_to(r, None)
+    assert next(c) == 4
+
 
 def test_trait_bind():
     r = RGB()

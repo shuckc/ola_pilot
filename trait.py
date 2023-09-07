@@ -70,9 +70,12 @@ class RGB(Trait):
         self.blue.set(blue)
 
     def set_rgb(self, red, green, blue):
-        self.red.set(red)
-        self.green.set(green)
-        self.blue.set(blue)
+        # because we listen to red, green, blue, set ourselves as the source
+        # so that we drop rather than propagate the change 3 times
+        self.red.set(red, source=self)
+        self.green.set(green, source=self)
+        self.blue.set(blue, source=self)
+        self._changed(None)
 
     def set_hex(self, hexstr):
         if hexstr.startswith("#"):
@@ -95,9 +98,7 @@ class RGB(Trait):
         self.blue.patch(data, base + 2)
 
     def _copy_to(self, other: "RGB", src: Any):
-        other.red.set(self.red.pos)
-        other.green.set(self.green.pos)
-        other.blue.set(self.blue.pos)
+        other.set_rgb(*self.get_approx_rgb())
 
     def bind(self, other: Trait):
         if not isinstance(other, RGB):
