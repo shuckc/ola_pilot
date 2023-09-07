@@ -52,7 +52,7 @@ def build_show():
     noise = PerlinNoiseEFX(count=10)
     controller.add_efx(noise)
 
-    col = ColourInterpolateEFX(count=8)
+    col = ColourInterpolateEFX(channels=8)
     controller.add_efx(col)
     noise.o0.bind(col.i0)
     noise.o1.bind(col.i1)

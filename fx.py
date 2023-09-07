@@ -163,32 +163,28 @@ class ColourInterpolateEFX(EFX):
     # Abstract  0x5571FF, 0x00FFFF, 0xFF00FF, 0xFFFF00
     # Ocean     0x003AB9, 0x02EAFF
 
-    def __init__(self, count=0, steps=100):
-        self.speed = Channel()
+    def __init__(self, channels=0, controlpts=4, steps=100):
         super().__init__()
+        self._control_points = []
+        self._steps = steps
 
-        self.c1 = RGB()
-        self.c1.set_hex("#FFFF00")
-        self.c2 = RGB()
-        self.c2.set_hex("#FF0000")
-        self.c3 = RGB()
-        self.c3.set_hex("#000040")
-        self.c4 = RGB()
-        self.c4.set_hex("#FF0000")
+        for i in range(controlpts):
+            c = RGB()
+            setattr(self, f"c{i}", c)
+            self._control_points.append(c)
+            c._patch_listener(self.remap_control)
 
-        self._count = count
-        self._inputs: List[IntensityChannel] = []
-        self._outputs: List[RGB] = []
-        for i in range(count):
+        for i in range(channels):
             inch = IntensityChannel()
-            self._inputs.append(inch)
             setattr(self, f"i{i}", inch)
             och = RGB()
-            self._outputs.append(och)
             setattr(self, f"o{i}", och)
             inch._patch_listener(functools.partial(self.remap_intensity, inch, och))
 
-        self._interp = self.interpolate([self.c1, self.c2, self.c3, self.c4])
+        self.remap_control(self)
+
+    def remap_control(self, source: Any) -> None:
+        self._interp = self.interpolate(self._control_points)
 
     def remap_intensity(self, inch, outch, source: Any):
         x = inch.value.pos
@@ -199,7 +195,10 @@ class ColourInterpolateEFX(EFX):
     def interpolate(self, control_points):
         o = []
         for i, j in itertools.pairwise(control_points):
-            o.extend(i.interpolate_to(j, 100))
+            if i.get_approx_rgb() != j.get_approx_rgb():
+                o.extend(i.interpolate_to(j, self._steps))
+        if len(o) == 0:
+            o = [control_points[0]]
         return o
 
     def tick(self, counter):

@@ -112,9 +112,9 @@ class RGB(Trait):
         r2, g2, b2 = other.get_approx_rgb()
         result = []
         for i in range(steps):
-            r = ((r2 - r1) / steps * i) + r1
-            g = ((g2 - g1) / steps * i) + g1
-            b = ((b2 - b1) / steps * i) + b1
+            r = ((r2 - r1) / (steps - 1) * i) + r1
+            g = ((g2 - g1) / (steps - 1) * i) + g1
+            b = ((b2 - b1) / (steps - 1) * i) + b1
             oc = RGB()
             oc.set_rgb(r, g, b)
             result.append(oc)
