@@ -17,7 +17,8 @@ class ThingWithTraits:
     def get_state_as_dict(self):
         d = {}
         for k, t in self.trait_items():
-            d[k] = t.get_state_as_dict()
+            if not t.is_bound:
+                d[k] = t.get_state_as_dict()
         return d
 
     def set_state(self, state: Dict[str, Any]) -> None:

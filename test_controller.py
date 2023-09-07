@@ -80,10 +80,28 @@ def test_changed_hook():
 def test_trait_bind():
     r = RGB()
     r2 = RGB()
+
+    assert not r2.is_bound
+
+    # binding sets the bound flag on the trait
     r.bind(r2)
+    assert r2.is_bound
 
     r.set_red(60)
     assert r2.red.pos == 60
+
+    # should this raise CannotChangeBoundValue ?
+    # r2.set_red(30)
+
+    # it is OK to bind a trait to mulitple others
+    r3 = RGB()
+    r.bind(r3)
+
+    assert r3.is_bound
+
+    r.set_red(30)
+    assert r2.red.pos == 30
+    assert r3.red.pos == 30
 
 
 def test_rgbw_downsample():
@@ -117,18 +135,19 @@ def test_rgba_downsample():
     assert r.get_hex() == "#FFBF00"
 
 
+class MockRGBFixture(Fixture):
+    def __init__(self):
+        self.wash = RGB()
+        super().__init__()
+
+    def patch(self, universe, base, data):
+        self.wash.patch(data, base)
+
+
 def test_fixture_unpatched():
-    class TestRGBFixture(Fixture):
-        def __init__(self):
-            self.wash = RGB()
-            super().__init__()
-
-        def patch(self, universe, base, data):
-            self.wash.patch(data, base)
-
     client = TestClient()
     controller = FixtureController(client, update_interval=25)
-    f_unpatched = TestRGBFixture()
+    f_unpatched = MockRGBFixture()
     assert f_unpatched.name is None
     assert f_unpatched.owner is None
 
@@ -136,7 +155,7 @@ def test_fixture_unpatched():
     controller.set_dmx(1, 2, 33)  # check this gets overriden during patching
     assert controller.get_dmx(1, 1) == 0
     assert controller.get_dmx(1, 2) == 33
-    assert uid == "TestRGBFixture-0"
+    assert uid == "MockRGBFixture-0"
     assert f_unpatched.owner == controller
     assert f_unpatched.name == uid
 
@@ -147,31 +166,39 @@ def test_fixture_unpatched():
     assert controller.get_dmx(1, 1) == 128
     assert controller.get_dmx(1, 2) == 0  # was overridden
 
-    uid2 = controller.add_fixture(TestRGBFixture())
-    assert uid2 == "TestRGBFixture-1"
+    uid2 = controller.add_fixture(MockRGBFixture())
+    assert uid2 == "MockRGBFixture-1"
 
 
 def test_controller_persist():
-    class TestRGBFixture(Fixture):
-        def __init__(self):
-            self.wash = RGB()
-            super().__init__()
-
-        def patch(self, universe, base, data):
-            self.wash.patch(data, base)
-
     client = TestClient()
     controller = FixtureController(client, update_interval=25)
-    uid = controller.add_fixture(f := TestRGBFixture())
+    uid = controller.add_fixture(f := MockRGBFixture())
     f.wash.red.set(128)
 
     j = controller.get_state_as_dict()
-    assert j == {"TestRGBFixture-0": {"wash": {"red": 128, "green": 0, "blue": 0}}}
+    assert j == {"MockRGBFixture-0": {"wash": {"red": 128, "green": 0, "blue": 0}}}
 
-    controller.set_state_from_dict({"TestRGBFixture-0": {"wash": {"red": 250, "green": 0, "blue": 0}}})
+    controller.set_state_from_dict(
+        {"MockRGBFixture-0": {"wash": {"red": 250, "green": 0, "blue": 0}}}
+    )
     assert f.wash.red.pos == 250
 
     controller.save_preset("red-on")
     f.wash.red.set(0)
     controller.load_preset("red-on")
     assert f.wash.red.pos == 250
+
+
+def test_controller_persist_skip_bound():
+    # traits bound to the value of another should not be saved in presets
+    client = TestClient()
+    controller = FixtureController(client, update_interval=25)
+    controller.add_fixture(f1 := MockRGBFixture())
+    controller.add_fixture(f2 := MockRGBFixture())
+    f2.wash.bind(f1.wash)  # writes to f2 are copied to f1
+
+    assert controller.get_state_as_dict() == {
+        "MockRGBFixture-0": {},
+        "MockRGBFixture-1": {"wash": {"red": 0, "green": 0, "blue": 0}},
+    }

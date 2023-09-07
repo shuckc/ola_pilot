@@ -73,7 +73,10 @@ def build_show():
     col.o7.bind(par3.wash)
 
     static = StaticColour()
-    [static.c1.bind(f.wash) for f in [mini0, par0, mini1, par1, mini2, par2, mini3, par3]]
+    [
+        static.c1.bind(f.wash)
+        for f in [mini0, par0, mini1, par1, mini2, par2, mini3, par3]
+    ]
     controller.add_efx(static)
 
     return controller

@@ -12,13 +12,17 @@ from channel import (
 
 
 class Trait(Observable, ABC):
+    def __init__(self):
+        super().__init__()
+        self.is_bound = False
+
     @abstractmethod
     def patch(self, data: UniverseType, base: int) -> None:
         pass
 
     @abstractmethod
     def bind(self, other: "Trait") -> None:
-        pass
+        other.is_bound = True
 
     @abstractmethod
     def interpolate_to(self, other: "Trait", steps: int) -> List["Trait"]:
@@ -196,6 +200,7 @@ class PTPos(Trait):
     def bind(self, other: Trait):
         if not isinstance(other, PTPos):
             raise ValueError()
+        super().bind(other)
         self._patch_listener(functools.partial(self._copy_to, other))
 
     def interpolate_to(self, other: Trait, steps: int):
@@ -220,6 +225,7 @@ class Channel(Trait):
     def bind(self, other: Trait):
         if not isinstance(other, Channel):
             raise ValueError()
+        super().bind(other)
         self._patch_listener(functools.partial(self._copy_to, other))
 
     def interpolate_to(self, other: Trait, steps: int):
@@ -253,6 +259,7 @@ class OnOffChannel(Trait):
     def bind(self, other: Trait):
         if not isinstance(other, OnOffChannel):
             raise ValueError()
+        super().bind(other)
         self._patch_listener(functools.partial(self._copy_to, other))
 
     def interpolate_to(self, other: Trait, steps: int):
