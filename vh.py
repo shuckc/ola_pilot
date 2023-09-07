@@ -9,10 +9,7 @@ from aio_ola import OlaClient
 from rtmidi.midiutil import open_midiinput
 
 
-def build_show():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-m", "--midi-in", action="store_true")
-    args = parser.parse_args()
+def build_show(args):
 
     client = OlaClient()
     controller = FixtureController(client, update_interval=25)
@@ -94,8 +91,16 @@ def build_show():
 
 
 if __name__ == "__main__":
-    controller = build_show()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-m", "--midi-in", action="store_true")
+    parser.add_argument("--hide-dmx", action="store_false")
+    parser.add_argument("--hide-fixtures", action="store_false")
+    parser.add_argument("--hide-efx", action="store_false")
+
+    args = parser.parse_args()
+
+    controller = build_show(args)
     controller.load_showfile("showfile.json")
-    app = OlaPilot(controller)
+    app = OlaPilot(controller, args.hide_efx, args.hide_dmx, args.hide_fixtures)
     app.run()
     controller.save_showfile()

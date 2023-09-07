@@ -483,29 +483,37 @@ class OlaPilot(App):
 
     def __init__(
         self,
-        controller,
+        controller, show_dmx=True, show_efx=True, show_fixtures=True
     ) -> None:
         super().__init__()
         self.controller = controller
         self.last_preset: Optional[str] = None
+        self.show_dmx = show_dmx
+        self.show_efx = show_efx
+        self.show_fixtures = show_fixtures
 
     def compose(self) -> ComposeResult:
+
+
+        contents: List[Widget] = []
+        if self.show_dmx:
+            for univ, data in self.controller.universes.items():
+                contents.append(UniverseDisplay(univ, data))
+
+        if self.show_fixtures:
+            contents.append(FixturesTable(self.controller.fixtures))
+
+        for midi in self.controller.pollable:
+            if isinstance(midi, MidiCC):
+                contents.append(MidiInfo(midi))
+
+        if self.show_efx:
+          contents.append(EFXTable(self.controller.efx))
+
         """Create child widgets for the app."""
         yield Header()
         yield Footer()
-        yield ScrollableContainer(
-            *[
-                UniverseDisplay(univ, data)
-                for univ, data in self.controller.universes.items()
-            ]
-            + [FixturesTable(self.controller.fixtures)]
-            + [
-                MidiInfo(midi)
-                for midi in self.controller.pollable
-                if isinstance(midi, MidiCC)
-            ]
-            + [EFXTable(self.controller.efx)]
-        )
+        yield ScrollableContainer(*contents)
         yield ShowtimeDisplay(self.controller)
 
         self.t = asyncio.create_task(self.controller_run())
