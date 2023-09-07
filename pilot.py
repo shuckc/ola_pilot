@@ -141,13 +141,22 @@ class TraitTable(DataTable, Generic[T]):
                     rowdata.append("")
                 else:
                     formatter = self.traits_fmt[(t, type(a))]
-                    a._patch_listener(functools.partial(self.mk_listener, f, t, a, formatter))
+                    a._patch_listener(
+                        functools.partial(self.mk_listener, f, t, a, formatter)
+                    )
                     rowdata.append(formatter(a))
             except AttributeError:
                 rowdata.append("")
         return rowdata
 
-    def mk_listener(self, fixture: T, trait: str, attr: ChannelProp, formatter:Callable[[int], str], cause: Any):
+    def mk_listener(
+        self,
+        fixture: T,
+        trait: str,
+        attr: ChannelProp,
+        formatter: Callable[[int], str],
+        cause: Any,
+    ) -> None:
         self.update_cell(self.rk[fixture], trait, formatter(attr))
 
     def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
