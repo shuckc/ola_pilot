@@ -206,6 +206,18 @@ class ColourInterpolateEFX(EFX):
         pass
 
 
+@register_efx
+class StaticColour(EFX):
+    def __init__(self):
+        super().__init__()
+        self.c1 = RGB()
+
+    def tick(self, counter):
+        if self.enabled.value.pos > 0:
+            # forces a refresh of the static value, to overwrite anything previously active
+            self.c1._copy_to(self.c1, self)
+
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import numpy as np

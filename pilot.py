@@ -490,8 +490,15 @@ class OlaPilot(App):
         )
         yield ShowtimeDisplay(self.controller)
 
-        self.t = asyncio.create_task(self.controller.run())
+        self.t = asyncio.create_task(self.controller_run())
+
         self.update_title()
+
+    async def controller_run(self):
+        try:
+            await self.controller.run()
+        except Exception as e:
+            self.log(e)
 
     def update_title(self):
         title = f"OLA Pilot {BLACKOUT_DICT[self.controller.blackout]}"

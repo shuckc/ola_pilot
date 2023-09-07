@@ -2,7 +2,7 @@ import argparse
 
 from fixtures import IbizaMini, LedJ7Q5RGBA
 from desk import FixtureController, MidiCC, WavePT_EFX
-from fx import ColourInterpolateEFX, PerlinNoiseEFX
+from fx import ColourInterpolateEFX, PerlinNoiseEFX, StaticColour
 from pilot import OlaPilot
 from aio_ola import OlaClient
 from rtmidi.midiutil import open_midiinput
@@ -71,6 +71,10 @@ def build_show():
     col.o5.bind(par2.wash)
     col.o6.bind(mini3.wash)
     col.o7.bind(par3.wash)
+
+    static = StaticColour()
+    [static.c1.bind(f.wash) for f in [mini0, par0, mini1, par1, mini2, par2, mini3, par3]]
+    controller.add_efx(static)
 
     return controller
 
