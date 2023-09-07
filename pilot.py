@@ -98,20 +98,19 @@ class UniverseDisplay(Static):
 
 T = TypeVar("T", bound="ThingWithTraits")
 
+EMPTY_TEXT = Text("")
 
 class TraitTable(DataTable, Generic[T]):
     def __init__(self, fixtures: List[T], extra_columns: List[str] = ["name"]) -> None:
         super(TraitTable, self).__init__()
         self.fixtures: List[T] = fixtures
         self.traits: List[str] = []
-        self.traits_fmt: Dict[Tuple[str, type], Callable[[int], str]] = {}
         self.rk: Dict[T, RowKey] = {}
         self.extra_columns = extra_columns
         traits_keys = {}
         for f in self.fixtures:
             for k, v in f.__dict__.items():
                 if isinstance(v, Trait):
-                    self.traits_fmt[(k, type(v))] = TRAIT_FORMATTER_DICT[type(v)]
                     traits_keys[k] = True
 
         self.traits.extend(list(traits_keys.keys()))
@@ -129,35 +128,35 @@ class TraitTable(DataTable, Generic[T]):
 
         self.styles.scrollbar_gutter = "stable"
 
-    def _get_basic(self, f: T):
-        return [f.name]
+    def _get_basic(self, f: T) -> List[Text]:
+        return [Text(f.name)]
 
-    def _get_row_data(self, f: T):
+    def _get_row_data(self, f: T) -> List[Text]:
         rowdata = self._get_basic(f)
         for t in self.traits:
             try:
                 a = getattr(f, t)
                 if a is None:
-                    rowdata.append("")
+                    rowdata.append(EMPTY_TEXT)
                 else:
-                    formatter = self.traits_fmt[(t, type(a))]
+                    formatter = TRAIT_FORMATTER_DICT[type(a)]
                     a._patch_listener(
                         functools.partial(self.mk_listener, f, t, a, formatter)
                     )
                     rowdata.append(formatter(a))
             except AttributeError:
-                rowdata.append("")
+                rowdata.append(EMPTY_TEXT)
         return rowdata
 
     def mk_listener(
         self,
         fixture: T,
-        trait: str,
-        attr: ChannelProp,
-        formatter: Callable[[int], str],
+        trait_name: str,
+        attr: Trait,
+        formatter: Callable[[Trait], Text],
         cause: Any,
     ) -> None:
-        self.update_cell(self.rk[fixture], trait, formatter(attr))
+        self.update_cell(self.rk[fixture], trait_name, formatter(attr))
 
     def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
         def handler(value):
@@ -205,38 +204,46 @@ class EFXTable(TraitTable[EFX]):
         super().__init__(efx, ["name"])
 
 
-def fmt_colour(rgb):
+def fmt_colour(rgb: RGB) -> Text:
     # t = f"⬤ {rgb.red.pos:3} {rgb.green.pos:3} {rgb.blue.pos:3}"
+    return fmt_hexblob(rgb.get_hex())
+
+@functools.lru_cache(maxsize=20000)
+def fmt_hexblob(hexcolour: str) -> Text:
     t = f"⬤ "
-    return Text(t, style=rgb.get_hex(), justify="right")
+    return Text(t, style=hexcolour)
 
 
-def fmt_pos(pos):
-    return f"{pos.pan.pos:5} {pos.tilt.pos:5}"
+def fmt_pos(pos: PTPos) -> Text:
+    return Text(f"{pos.pan.pos:5} {pos.tilt.pos:5}")
 
-
-def fmt_ch(channel):
+def fmt_ch(channel: Channel) -> Text:
     v = int(channel.value.pos / 255 * 100)
-    return f"{v:2}%"
+    return Text(f"{v:2}%")
 
+def fmt_intensity(channel: IntensityChannel) -> Text:
+    return fmt_intensity_inner(channel.value.pos)
 
-def fmt_intensity(channel):
-    v = int(channel.value.pos / 255 * 100)
-    rgb = int(channel.value.pos)
+@functools.lru_cache(maxsize=300)
+def fmt_intensity_inner(v: int) -> Text:
+    pc = int(v / 255 * 100)
+    rgb = v
+    text = "⬤ FL" if pc > 99 else f"⬤ {pc:2}"
     colourhex = f"#{rgb:02X}{rgb:02X}{rgb:02X}"
-    return Text(f"⬤ {v:2}", style=colourhex)
+    return Text(text, style=colourhex)
 
 
-def fmt_idxch(indexed):
-    return "open"
+TEXT_OPEN = Text("open")
+def fmt_idxch(indexed) -> Text:
+    return TEXT_OPEN
 
-
-def fmt_on_off(channel):
+TEXT_ON_OFF = {0: Text("off"), 1: Text("on")}
+def fmt_on_off(channel) -> Text:
     v = channel.value.pos
-    return {0: "off", 1: "on"}[v]
+    return TEXT_ON_OFF[v]
 
 
-TRAIT_FORMATTER_DICT = {
+TRAIT_FORMATTER_DICT: Dict[type[Trait],Callable[[Trait],Text]] = {
     PTPos: fmt_pos,
     RGB: fmt_colour,
     RGBA: fmt_colour,
