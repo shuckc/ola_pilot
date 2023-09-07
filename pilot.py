@@ -357,7 +357,7 @@ class SavePresetScreen(ModalScreen[Optional[str]]):
         Binding("escape", "app.pop_screen", "", show=False),
     ]
 
-    def __init__(self, last_preset: str):
+    def __init__(self, last_preset: Optional[str]):
         self.last_preset = last_preset
         super().__init__()
 
@@ -366,6 +366,7 @@ class SavePresetScreen(ModalScreen[Optional[str]]):
             Label("Save preset", id="question"),
             Input(
                 placeholder="Preset name",
+                value=self.last_preset,
             ),
             Horizontal(
                 Button("Save", variant="error", id="save"),
@@ -389,7 +390,7 @@ class LoadPresetScreen(ModalScreen[Optional[str]]):
         Binding("escape", "app.pop_screen", "", show=False),
     ]
 
-    def __init__(self, choices: List[str], last_preset: str):
+    def __init__(self, choices: List[str], last_preset: Optional[str]):
         self.choices = choices
         self.last_preset = last_preset
         super().__init__()
@@ -469,7 +470,7 @@ class OlaPilot(App):
     ) -> None:
         super().__init__()
         self.controller = controller
-        self.last_preset: str = ""
+        self.last_preset: Optional[str] = None
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
