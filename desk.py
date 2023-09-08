@@ -41,7 +41,6 @@ class WavePT_EFX(EFX):
         self.wave = Channel(wave)
         self.orientation = 0
         super().__init__()
-        self.can_act_on = [PTPos]
         self.pan_midi = 0
         self.tilt_midi = 0
         self.offset = PTPos()

@@ -1,6 +1,7 @@
 import pytest
 
-from fx import perlin, ColourInterpolateEFX, CosPulseEFX
+from fx import perlin, ColourInterpolateEFX, CosPulseEFX, ChangeInBlack
+from trait import IndexedChannel
 
 
 def test_perlin():
@@ -84,3 +85,35 @@ def test_cos_pulse():
     assert c.o1.value.pos == 0
     assert c.o2.value.pos == 0
     assert c.o3.value.pos == 0
+
+
+def test_change_in_black():
+    colour_wheel = IndexedChannel(values={"red": 50, "black": 100})
+    cib = ChangeInBlack(channels=1, changes=[[colour_wheel]], blackout=0.3)
+    cib.i0.set(128)
+    cib.tick(0)
+    # at time zero, is blacked out
+    assert cib.o0.value.pos == 0
+
+    cib.tick(0.25)
+    assert cib.o0.value.pos == 0
+
+    cib.tick(0.35)
+    assert cib.o0.value.pos == 128
+
+    cib.tick(1.00)
+    assert cib.o0.value.pos == 128
+
+    colour_wheel.set("black")
+    assert cib.o0.value.pos == 0
+
+    cib.tick(1.25)
+    assert cib.o0.value.pos == 0
+
+    cib.tick(1.5)
+    assert cib.o0.value.pos == 128
+
+    # changing to existing value does not make a blackout
+    colour_wheel.set("black")
+    cib.tick(1.6)
+    assert cib.o0.value.pos == 128

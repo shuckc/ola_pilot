@@ -78,7 +78,7 @@ def test_indexed_channel():
 
     # channel should have min=0 max=3 pos=0
     assert spot_cw.value.pos_min == 0
-    assert spot_cw.value.pos_max == 4
+    assert spot_cw.value.pos_max == 3
     assert spot_cw.value.pos == 0
 
     spot_cw.set("green")

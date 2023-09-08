@@ -35,9 +35,11 @@ class ChannelProp(Observable, ABC):
         self._write_dmx()
 
     def set(self, value: int, source=None):
-        self.pos = min(self.pos_max, max(self.pos_min, int(value)))
-        self._write_dmx()
-        self._changed(source)
+        np = min(self.pos_max, max(self.pos_min, int(value)))
+        if np != self.pos:
+            self.pos = np
+            self._write_dmx()
+            self._changed(source)
 
     @abstractmethod
     def _write_dmx(self):

@@ -49,12 +49,16 @@ class Fixture(ThingWithTraits, ABC):
 
 class EFX(ThingWithTraits):
     def __init__(self):
-        self.enabled = OnOffChannel()
-        self.can_act_on = [Trait]
         super().__init__()
 
     def tick(self, counter: int) -> None:
         pass
+
+
+class EnabledEFX:
+    def __init__(self):
+        super().__init__()
+        self.enabled = OnOffChannel()
 
 
 fixture_class_list: List[type[Fixture]] = []

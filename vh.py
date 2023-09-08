@@ -2,7 +2,14 @@ import argparse
 
 from fixtures import IbizaMini, LedJ7Q5RGBA
 from desk import FixtureController, MidiCC, WavePT_EFX
-from fx import ColourInterpolateEFX, PerlinNoiseEFX, StaticColour, CosPulseEFX
+from fx import (
+    ColourInterpolateEFX,
+    PerlinNoiseEFX,
+    StaticColour,
+    CosPulseEFX,
+    StaticCopy,
+    ChangeInBlack,
+)
 from trait import IntensityChannel
 from pilot import OlaPilot
 from aio_ola import OlaClient
@@ -60,30 +67,48 @@ def build_show(args):
     noise.o6.bind(col.i6)
     noise.o7.bind(col.i7)
 
-    col.o0.bind(mini0.wash)
-    col.o1.bind(par0.wash)
-    col.o2.bind(mini1.wash)
-    col.o3.bind(par1.wash)
-    col.o4.bind(mini2.wash)
-    col.o5.bind(par2.wash)
-    col.o6.bind(mini3.wash)
-    col.o7.bind(par3.wash)
-
-    noise = PerlinNoiseEFX(count=4, trunc=0.3)
-    controller.add_efx(noise)
-    noise.o0.bind(mini0.spot)
-    noise.o1.bind(mini1.spot)
-    noise.o2.bind(mini2.spot)
-    noise.o3.bind(mini3.spot)
+    col.o0.bind(par0.wash)
+    col.o1.bind(mini0.wash)
+    col.o2.bind(par1.wash)
+    col.o3.bind(mini1.wash)
+    col.o4.bind(par2.wash)
+    col.o5.bind(mini2.wash)
+    col.o6.bind(par3.wash)
+    col.o7.bind(mini3.wash)
 
     static = StaticColour()
     for f in [mini0, par0, mini1, par1, mini2, par2, mini3, par3]:
         static.c0.bind(f.wash)
     controller.add_efx(static)
 
-    static = StaticColour(trait_type=IntensityChannel)
+    static_cw = StaticCopy(of_trait=mini0.spot_cw)
+    static_gobo = StaticCopy(of_trait=mini0.spot_gobo)
+    # 300ms blackout for worst case wheel changes
+    sensitivty = []
     for f in [mini0, mini1, mini2, mini3]:
-        static.c0.bind(f.spot)
+        sensitivty.append([f.spot_cw, f.spot_gobo])
+
+    cib = ChangeInBlack(channels=4, changes=sensitivty, blackout=0.3)
+
+    noise = PerlinNoiseEFX(count=4, trunc=0.3)
+    controller.add_efx(noise)
+    noise.o0.bind(cib.i0)
+    noise.o1.bind(cib.i1)
+    noise.o2.bind(cib.i2)
+    noise.o3.bind(cib.i3)
+
+    for i, f in enumerate([mini0, mini1, mini2, mini3]):
+        static_cw.c0.bind(f.spot_cw)
+        static_gobo.c0.bind(f.spot_gobo)
+        cib._outputs[i].bind(f.spot)
+
+    controller.add_efx(cib)
+    controller.add_efx(static_cw)
+    controller.add_efx(static_gobo)
+
+    static = StaticColour(trait_type=IntensityChannel)
+    for f in cib._inputs:
+        static.c0.bind(f)
     controller.add_efx(static)
 
     cp = CosPulseEFX(channels=8)

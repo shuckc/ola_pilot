@@ -47,6 +47,10 @@ class Trait(Observable, ABC):
             if isinstance(v, ChannelProp):
                 yield k, v
 
+    @abstractmethod
+    def duplicate(self) -> "Trait":
+        pass
+
 
 # https://blog.saikoled.com/post/44677718712/how-to-convert-from-hsi-to-rgb-white
 class RGB(Trait):
@@ -121,6 +125,9 @@ class RGB(Trait):
             oc.set_rgb(r, g, b)
             result.append(oc)
         return result
+
+    def duplicate(self):
+        return RGB()
 
 
 class RGBW(RGB):
@@ -208,6 +215,9 @@ class PTPos(Trait):
     def interpolate_to(self, other: Trait, steps: int):
         raise ValueError()
 
+    def duplicate(self):
+        return PTPos()
+
 
 class Channel(Trait):
     def __init__(self, value=0):
@@ -233,11 +243,16 @@ class Channel(Trait):
     def interpolate_to(self, other: Trait, steps: int):
         raise ValueError()
 
+    def duplicate(self):
+        return Channel()
+
 
 class IntensityChannel(Channel):
     def __init__(self, value=0):
         super().__init__()
 
+    def duplicate(self):
+        return IntensityChannel()
 
 
 class IndexedChannel(Trait):
@@ -246,7 +261,6 @@ class IndexedChannel(Trait):
         self.value = IndexedByteChannelProp(values)
         self.values = values
         self.value._patch_listener(self._changed)
-
 
     def set(self, value: str):
         self.value.set_key(value)
@@ -273,6 +287,9 @@ class IndexedChannel(Trait):
     def interpolate_to(self, other: Trait, steps: int):
         raise ValueError()
 
+    def duplicate(self):
+        return IndexedChannel(values=self.values)
+
 
 class OnOffChannel(Trait):
     def __init__(self, value=0):
@@ -297,3 +314,6 @@ class OnOffChannel(Trait):
 
     def interpolate_to(self, other: Trait, steps: int):
         raise ValueError()
+
+    def duplicate(self):
+        return OnOffChannel()

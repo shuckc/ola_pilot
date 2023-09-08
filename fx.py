@@ -21,7 +21,7 @@ import itertools
 import math
 from typing import Any, List
 
-from registration import EFX, register_efx
+from registration import EFX, register_efx, EnabledEFX
 from trait import RGB, Channel, IntensityChannel
 
 # Hash lookup table as defined by Ken Perlin.  This is a randomly
@@ -132,11 +132,10 @@ def lerp(a: float, b: float, x: float) -> float:
 
 
 @register_efx
-class PerlinNoiseEFX(EFX):
+class PerlinNoiseEFX(EnabledEFX, EFX):
     def __init__(self, count=0, trunc=math.sqrt(0.5)):
         self.speed = Channel()
         super().__init__()
-        self.can_act_on = [Channel]
         self._trunc = trunc
         self._count = count
         self._outputs: List[Channel] = []
@@ -158,7 +157,7 @@ class PerlinNoiseEFX(EFX):
 
 
 @register_efx
-class ColourInterpolateEFX(EFX):
+class ColourInterpolateEFX(EnabledEFX, EFX):
     # Rainbow   0xFF0000, 0x00FF00, 0x0000FF
     # Fire      0xFFFF00, 0xFF0000, 0x000040, 0xFF0000
     # Abstract  0x5571FF, 0x00FFFF, 0xFF00FF, 0xFFFF00
@@ -207,7 +206,7 @@ class ColourInterpolateEFX(EFX):
 
 
 @register_efx
-class StaticColour(EFX):
+class StaticColour(EnabledEFX, EFX):
     def __init__(self, trait_type=RGB):
         super().__init__()
         self.c0 = trait_type()
@@ -219,7 +218,19 @@ class StaticColour(EFX):
 
 
 @register_efx
-class CosPulseEFX(EFX):
+class StaticCopy(EnabledEFX, EFX):
+    def __init__(self, of_trait=None):
+        super().__init__()
+        self.c0 = of_trait.duplicate()
+
+    def tick(self, counter: float) -> None:
+        if self.enabled.value.pos > 0:
+            # forces a refresh of the static value, to overwrite anything previously active
+            self.c0._copy_to(self.c0, self)
+
+
+@register_efx
+class CosPulseEFX(EnabledEFX, EFX):
     def __init__(self, trait_type=IntensityChannel, channels=4):
         super().__init__()
         self.speed = Channel()
@@ -245,6 +256,68 @@ class CosPulseEFX(EFX):
                 t1 = pos - (i + self.channels) * math.pi
                 v = int(256 * (self.unitwave(t0) + self.unitwave(t1)))
                 o.set(v)
+
+
+@register_efx
+class ChangeInBlack(EFX):
+    # monitor 'changes' list for changes, when they do, blackout the output
+    # channel for blackout seconds
+    def __init__(
+        self, channels=4, changes=[], blackout=0.3, trait_type=IntensityChannel
+    ):
+        super().__init__()
+
+        self._lastchange: List[float] = []
+        self._blocked = []
+        self._outputs: List[Channel] = []
+        self._inputs: List[Channel] = []
+        self.blackout = blackout
+        self.black = trait_type()  # editable!
+
+        for i in range(channels):
+            inch = IntensityChannel()
+            setattr(self, f"i{i}", inch)
+            self._inputs.append(inch)
+
+            och = trait_type()
+            self._outputs.append(och)
+            setattr(self, f"o{i}", och)
+
+            inch._patch_listener(functools.partial(self.on_input_change, i, inch, och))
+
+            self._lastchange.append(0)
+            self._blocked.append(True)
+
+            sensitivity = changes[i]
+            for s in sensitivity:
+                s._patch_listener(functools.partial(self.on_blackout_change, i))
+
+    def tick(self, counter: float) -> None:
+        self.last_tick = counter
+        for i, o in enumerate(self._outputs):
+            if self._lastchange[i] + self.blackout > counter:
+                if not self._blocked[i]:
+                    self._blocked[i] = True
+                    self.black._copy_to(o, src=self)
+                desired = self.black
+            else:
+                # recovered
+                if self._blocked[i]:
+                    self._blocked[i] = False
+                    self._inputs[i]._copy_to(o, src=self)
+
+    def on_blackout_change(self, i: int, source: Any) -> None:
+        # mark channel as changed to cause black out on next tick
+        self._lastchange[i] = self.last_tick
+
+        self.black._copy_to(self._outputs[i], src=self)
+
+    def on_input_change(
+        self, i: int, inch: Channel, outch: Channel, source: Any
+    ) -> None:
+        if not self._blocked[i]:
+            # forward change
+            inch._copy_to(outch, src=self)
 
 
 if __name__ == "__main__":
