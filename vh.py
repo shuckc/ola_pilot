@@ -2,7 +2,7 @@ import argparse
 
 from fixtures import IbizaMini, LedJ7Q5RGBA
 from desk import FixtureController, MidiCC, WavePT_EFX
-from fx import ColourInterpolateEFX, PerlinNoiseEFX, StaticColour
+from fx import ColourInterpolateEFX, PerlinNoiseEFX, StaticColour, CosPulseEFX
 from trait import IntensityChannel
 from pilot import OlaPilot
 from aio_ola import OlaClient
@@ -85,6 +85,18 @@ def build_show(args):
     for f in [mini0, mini1, mini2, mini3]:
         static.c0.bind(f.spot)
     controller.add_efx(static)
+
+    cp = CosPulseEFX(channels=8)
+    cp.o0.bind(col.i0)
+    cp.o1.bind(col.i1)
+    cp.o2.bind(col.i2)
+    cp.o3.bind(col.i3)
+    cp.o4.bind(col.i4)
+    cp.o5.bind(col.i5)
+    cp.o6.bind(col.i6)
+    cp.o7.bind(col.i7)
+
+    controller.add_efx(cp)
 
     return controller
 

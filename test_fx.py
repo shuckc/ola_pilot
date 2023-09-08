@@ -1,6 +1,6 @@
 import pytest
 
-from fx import perlin, ColourInterpolateEFX
+from fx import perlin, ColourInterpolateEFX, CosPulseEFX
 
 
 def test_perlin():
@@ -35,3 +35,52 @@ def test_colour_interpolate():
     assert len(c._interp) == 30
     assert c._interp[0].get_hex() == "#FFFFFF"
     assert c._interp[-1].get_hex() == "#000000"
+
+
+def test_cos_pulse():
+    c = CosPulseEFX(channels=4)
+    c.enabled.set(1)
+    c.tick(0)
+    assert c.o0.value.pos == 255
+    assert c.o1.value.pos == 0
+    assert c.o2.value.pos == 0
+    assert c.o3.value.pos == 0
+
+    # speed is 0 (stationary) at 128, and unitary at 128+50=
+    c.speed.set(178)
+    # after one second, the peak should be lining up with channel 1
+    c.tick(1.0)
+    assert c.o0.value.pos == 0
+    assert c.o1.value.pos == 255
+    assert c.o2.value.pos == 0
+    assert c.o3.value.pos == 0
+
+    c.tick(1.5)
+    assert c.o0.value.pos == 0
+    assert c.o1.value.pos == 128
+    assert c.o2.value.pos == 128
+    assert c.o3.value.pos == 0
+
+    c.tick(2.0)
+    assert c.o0.value.pos == 0
+    assert c.o1.value.pos == 0
+    assert c.o2.value.pos == 255
+    assert c.o3.value.pos == 0
+
+    c.tick(3.0)
+    assert c.o0.value.pos == 0
+    assert c.o1.value.pos == 0
+    assert c.o2.value.pos == 0
+    assert c.o3.value.pos == 255
+
+    c.tick(3.5)
+    assert c.o0.value.pos == 128
+    assert c.o1.value.pos == 0
+    assert c.o2.value.pos == 0
+    assert c.o3.value.pos == 128
+
+    c.tick(4.0)
+    assert c.o0.value.pos == 255
+    assert c.o1.value.pos == 0
+    assert c.o2.value.pos == 0
+    assert c.o3.value.pos == 0

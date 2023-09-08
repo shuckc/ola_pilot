@@ -212,10 +212,39 @@ class StaticColour(EFX):
         super().__init__()
         self.c0 = trait_type()
 
-    def tick(self, counter):
+    def tick(self, counter: float) -> None:
         if self.enabled.value.pos > 0:
             # forces a refresh of the static value, to overwrite anything previously active
             self.c0._copy_to(self.c0, self)
+
+
+@register_efx
+class CosPulseEFX(EFX):
+    def __init__(self, trait_type=IntensityChannel, channels=4):
+        super().__init__()
+        self.speed = Channel()
+        self.channels = channels
+        self._outputs: List[Channel] = []
+        for i in range(channels):
+            och = trait_type()
+            self._outputs.append(och)
+            setattr(self, f"o{i}", och)
+
+    # theta in radians
+    def unitwave(self, theta: float) -> float:
+        if theta < -math.pi or theta > math.pi:
+            return 0
+        return math.cos(theta) / 2 + 0.5
+
+    def tick(self, counter: float) -> None:
+        if self.enabled.value.pos > 0:
+            pos = counter * ((self.speed.value.pos - 128) / 50.0)
+            pos = (pos % self.channels) * math.pi
+            for i, o in enumerate(self._outputs):
+                t0 = pos - i * math.pi
+                t1 = pos - (i + self.channels) * math.pi
+                v = int(256 * (self.unitwave(t0) + self.unitwave(t1)))
+                o.set(v)
 
 
 if __name__ == "__main__":
