@@ -130,7 +130,10 @@ class TraitTable(DataTable, Generic[T]):
         self.styles.scrollbar_gutter = "stable"
 
     def _get_basic(self, f: T) -> List[Text]:
-        return [Text(f.name)]
+        name = f.name
+        if name is None:
+            name = "None"
+        return [Text(name)]
 
     def _get_row_data(self, f: T) -> List[Text]:
         rowdata = self._get_basic(f)

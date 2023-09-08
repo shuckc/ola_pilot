@@ -7,8 +7,8 @@ from trait import OnOffChannel, Trait
 
 class ThingWithTraits:
     def __init__(self):
-        self.owner = None
-        self.name = None
+        self.owner: Optional[Any] = None
+        self.name: Optional[str] = None
 
     def set_owner_name(self, owner: Any, name: str):
         self.owner = owner
