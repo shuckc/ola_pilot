@@ -77,6 +77,75 @@ class IbizaMini(Fixture):
 
 
 @fixture
+class IntimidatorSpotDuo(Fixture):
+    def __init__(self, head=0):
+        super().__init__(ch=20)
+        if head not in [0, 1]:
+            raise ValueError("bad head number")
+        self.head = head
+        self.pos = PTPos()
+        self.spot = IntensityChannel()
+        self.spot_cw = IndexedChannel(
+            values={
+                "white": 0,
+                "orange": 16,
+                "cyan": 32,
+                "red": 48,
+                "green": 64,
+                "yellow": 96,
+                "blue": 112,
+            }
+        )
+        self.spot_gobo = IndexedChannel(
+            values={
+                "open": 0,
+                "small": 10,
+                "swirl": 16,
+                "rose": 22,
+                "bolt": 28,
+                "triangle": 34,
+                "hex": 40,
+                "shock": 46,
+                "swirl2": 52,
+                "ice": 58,
+            }
+        )
+        self.shutter = IndexedChannel(
+            values={
+                "off": 0,
+                "on": 4,
+                "shutter 0": 8,
+                "shutter 1": 18,
+                "shutter 2": 28,
+                "shutter 3": 38,
+                "shutter 4": 48,
+                "shutter 5": 58,
+                "shutter 6": 68,
+                "pulse 0": 77,
+                "strobe": 146,
+            }
+        )
+        if head == 0:
+            self.pt_speed = Channel(value=0)
+
+    def patch(self, universe: int, base: int, data: UniverseType) -> None:
+        super().patch(universe, base, data)
+        if self.head == 0:
+            self.pos.patch(data, base + 0)
+            self.pt_speed.patch(data, base + 8)
+            self.spot_cw.patch(data, base + 9)
+            self.spot_gobo.patch(data, base + 11)
+            self.spot.patch(data, base + 13)
+            self.shutter.patch(data, base + 15)
+        else:
+            self.pos.patch(data, base + 4)
+            self.spot_cw.patch(data, base + 10)
+            self.spot_gobo.patch(data, base + 12)
+            self.spot.patch(data, base + 14)
+            self.shutter.patch(data, base + 16)
+
+
+@fixture
 class LedJ7Q5RGBA(Fixture):
     def __init__(self):
         super().__init__(ch=4)

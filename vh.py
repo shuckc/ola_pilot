@@ -1,6 +1,6 @@
 import argparse
 
-from fixtures import IbizaMini, LedJ7Q5RGBA
+from fixtures import IbizaMini, LedJ7Q5RGBA, IntimidatorSpotDuo
 from desk import FixtureController, MidiCC, WavePT_EFX
 from fx import (
     ColourInterpolateEFX,
@@ -122,6 +122,14 @@ def build_show(args):
     cp.o7.bind(col.i7)
 
     controller.add_efx(cp)
+
+
+    for i in range(2):
+        # patch these to the same base address, so each head is controlled separately
+        intim_h0 = IntimidatorSpotDuo(head=0)
+        intim_h1 = IntimidatorSpotDuo(head=1)
+        controller.add_fixture(intim_h0, 1, 99+i*20)
+        controller.add_fixture(intim_h1, 1, 99+i*20)
 
     return controller
 
