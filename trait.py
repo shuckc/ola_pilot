@@ -8,6 +8,7 @@ from channel import (
     Observable,
     UniverseType,
     ChannelProp,
+    IndexedByteChannelProp,
 )
 
 
@@ -210,9 +211,9 @@ class PTPos(Trait):
 
 class Channel(Trait):
     def __init__(self, value=0):
+        super().__init__()
         self.value = ByteChannelProp(pos=value)
         self.value._patch_listener(self._changed)
-        super().__init__()
 
     def set(self, value):
         self.value.set(value)
@@ -238,8 +239,39 @@ class IntensityChannel(Channel):
         super().__init__()
 
 
-class IndexedChannel(Channel):
-    pass
+
+class IndexedChannel(Trait):
+    def __init__(self, values: Dict[str, int] = {}):
+        super().__init__()
+        self.value = IndexedByteChannelProp(values)
+        self.values = values
+        self.value._patch_listener(self._changed)
+
+
+    def set(self, value: str):
+        self.value.set_key(value)
+
+    def patch(self, data: UniverseType, base: int) -> None:
+        self.value.patch(data, base)
+
+    def _copy_to(self, other: "Channel", src: Any):
+        other.value.set(self.value.pos)
+
+    def bind(self, other: Trait):
+        if not isinstance(other, IndexedChannel):
+            raise ValueError()
+        if not other.values == self.values:
+            raise ValueError(
+                "Cannot bind IndexedChannel to one with different value dictionary"
+            )
+        super().bind(other)
+        self._patch_listener(functools.partial(self._copy_to, other))
+
+    def get(self) -> str:
+        return self.value.key_list[self.value.pos]
+
+    def interpolate_to(self, other: Trait, steps: int):
+        raise ValueError()
 
 
 class OnOffChannel(Trait):

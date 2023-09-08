@@ -241,16 +241,16 @@ def fmt_intensity_inner(v: int) -> Text:
     return Text(text, style=colourhex)
 
 
-TEXT_OPEN = Text("open")
+def fmt_idxch(channel: IndexedChannel) -> Text:
+    s = channel.get()
+    return fmt_idxch_inner(s)
 
-
-def fmt_idxch(indexed) -> Text:
-    return TEXT_OPEN
+@functools.lru_cache(maxsize=300)
+def fmt_idxch_inner(s: str) -> Text:
+    return Text(s)
 
 
 TEXT_ON_OFF = {0: Text("off"), 1: Text("on")}
-
-
 def fmt_on_off(channel) -> Text:
     v = channel.value.pos
     return TEXT_ON_OFF[v]

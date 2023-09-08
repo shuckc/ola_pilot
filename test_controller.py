@@ -5,7 +5,7 @@ import pytest
 
 from desk import FixtureController
 from registration import Fixture
-from trait import RGB, RGBA, RGBW
+from trait import RGB, RGBA, RGBW, IndexedChannel
 
 
 class TestClient:
@@ -58,6 +58,32 @@ def test_trait():
     # setters write through to the universe once patched
     r.set_red(1)
     assert u[5] == 1
+
+
+def test_indexed_channel():
+    spot_cw = IndexedChannel(values={"white": 0, "red": 20, "green": 40, "blue": 55})
+    spot_cw.set("white")
+    u = make_test_universe()
+    spot_cw.patch(u, 5)
+    assert u[5] == 0
+
+    spot_cw.set("red")
+    assert u[5] == 20
+    assert spot_cw.get() == "red"
+
+    # setting invalid gives first entry
+    spot_cw.set("beige")
+    assert u[5] == 0
+    assert spot_cw.get() == "white"
+
+    # channel should have min=0 max=3 pos=0
+    assert spot_cw.value.pos_min == 0
+    assert spot_cw.value.pos_max == 4
+    assert spot_cw.value.pos == 0
+
+    spot_cw.set("green")
+    assert spot_cw.value.pos == 2
+    assert u[5] == 40
 
 
 def test_changed_hook():
