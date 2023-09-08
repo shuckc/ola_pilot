@@ -58,10 +58,13 @@ class Bar(Widget, can_focus=True):
     """
 
     BINDINGS = [
-        Binding("up", "increase", "Increase value (fine)", show=True),
-        Binding("down", "decrease", "Decrease value (fine)", show=True),
-        Binding("pageup", "page_up", "Increase value (course)", show=True),
-        Binding("pagedown", "page_down", "Decrease value (course)", show=True),
+        Binding("up", "increase", "Increase (+1)", show=True),
+        Binding("down", "decrease", "Decrease (-1)", show=True),
+        Binding("pageup", "page_up", "Increase (course +5%)", show=True),
+        Binding("pagedown", "page_down", "Decrease (course -5%)", show=True),
+        Binding("shift+up,shift+page_up","inc1pc", "Increase (+.1%)", show=True),
+        Binding("shift+down,shift+page_down", "dec1pc", "Decrease (-.1%)", show=True),
+
     ]
 
     _percentage: reactive[float] = reactive[float](0.0)
@@ -72,9 +75,10 @@ class Bar(Widget, can_focus=True):
         This message can be handled using an `on_slider_changed` method.
         """
 
-        def __init__(self, bar: Bar, change: int) -> None:
+        def __init__(self, bar: Bar, change: float, percent: bool) -> None:
             super().__init__()
-            self.change: int = change
+            self.change: float = change
+            self.percent: bool = percent
             self.bar: Bar = bar
 
         @property
@@ -108,18 +112,24 @@ class Bar(Widget, can_focus=True):
             background_style=Style.from_color(bar_style.bgcolor),
         )
 
-    def action_page_up(self) -> None:
-        """Move the cursor one page up."""
-        self.post_message(self.PositionDelta(self, +10))
-
-    def action_page_down(self) -> None:
-        self.post_message(self.PositionDelta(self, -10))
-
     def action_increase(self) -> None:
-        self.post_message(self.PositionDelta(self, +1))
+        self.post_message(self.PositionDelta(self, +1, False))
 
     def action_decrease(self) -> None:
-        self.post_message(self.PositionDelta(self, -1))
+        self.post_message(self.PositionDelta(self, -1, False))
+
+    def action_inc1pc(self) -> None:
+        self.post_message(self.PositionDelta(self, +0.1, True))
+
+    def action_dec1pc(self) -> None:
+        self.post_message(self.PositionDelta(self, -0.1, True))
+
+    def action_page_up(self) -> None:
+        """Move the cursor one page up."""
+        self.post_message(self.PositionDelta(self, +5, True))
+
+    def action_page_down(self) -> None:
+        self.post_message(self.PositionDelta(self, -5, True))
 
 
 class PercentageStatus(Label):
@@ -422,7 +432,12 @@ class PositionBar(Widget, can_focus=False):
     @on(Bar.PositionDelta)
     def _update_position(self, event) -> None:
         old_position = self.position
-        self.position = self.position + event.change
+        if event.percent:
+            pc1 = (self.position_max - self.position_min)/100.0
+            self.position = int(self.position + event.change*pc1)
+        else:
+            self.position = self.position + event.change
+
         if self.position != old_position:
             self.post_message(
                 self.PositionChanged(
@@ -504,6 +519,13 @@ class DemoPositionBar(App[None]):
                 )
                 yield Label("Last value: N/A", id="last_value")
 
+                yield Label("\nMassive range")
+                yield PositionBar(
+                    0,
+                    30,
+                    0xFFFF,
+                    id="hi10",
+                )
                 yield Button("Quit")
 
         yield Footer()
