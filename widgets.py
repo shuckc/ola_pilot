@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Callable, Optional
+from enum import Enum
 
 from rich.style import Style
 from textual import on
@@ -15,6 +16,12 @@ from textual.renderables.bar import Bar as BarRenderable
 from textual.timer import Timer
 from textual.widget import Widget
 from textual.widgets import Button, Footer, Label
+
+
+class DeltaType(Enum):
+    DELTA = 0
+    PERCENT = 1
+    FRACTION = 2
 
 
 class Bar(Widget, can_focus=True):
@@ -62,9 +69,11 @@ class Bar(Widget, can_focus=True):
         Binding("down", "decrease", "Decrease (-1)", show=True),
         Binding("pageup", "page_up", "Increase (course +5%)", show=True),
         Binding("pagedown", "page_down", "Decrease (course -5%)", show=True),
-        Binding("shift+up,shift+page_up","inc1pc", "Increase (+.1%)", show=True),
-        Binding("shift+down,shift+page_down", "dec1pc", "Decrease (-.1%)", show=True),
-
+        Binding("shift+up,shift+pageup", "inc1pc", "Increase (+.1%)", show=True),
+        Binding("shift+down,shift+pagedown", "dec1pc", "Decrease (-.1%)", show=True),
+        Binding("z", "zero", "Zero", show=True),
+        Binding("h", "half", "Half", show=True),
+        Binding("f", "full", "Full", show=True),
     ]
 
     _percentage: reactive[float] = reactive[float](0.0)
@@ -75,10 +84,10 @@ class Bar(Widget, can_focus=True):
         This message can be handled using an `on_slider_changed` method.
         """
 
-        def __init__(self, bar: Bar, change: float, percent: bool) -> None:
+        def __init__(self, bar: Bar, change: float, deltatype: DeltaType) -> None:
             super().__init__()
             self.change: float = change
-            self.percent: bool = percent
+            self.deltatype: DeltaType = deltatype
             self.bar: Bar = bar
 
         @property
@@ -113,23 +122,31 @@ class Bar(Widget, can_focus=True):
         )
 
     def action_increase(self) -> None:
-        self.post_message(self.PositionDelta(self, +1, False))
+        self.post_message(self.PositionDelta(self, +1, DeltaType.DELTA))
 
     def action_decrease(self) -> None:
-        self.post_message(self.PositionDelta(self, -1, False))
+        self.post_message(self.PositionDelta(self, -1, DeltaType.DELTA))
 
     def action_inc1pc(self) -> None:
-        self.post_message(self.PositionDelta(self, +0.1, True))
+        self.post_message(self.PositionDelta(self, +0.1, DeltaType.PERCENT))
 
     def action_dec1pc(self) -> None:
-        self.post_message(self.PositionDelta(self, -0.1, True))
+        self.post_message(self.PositionDelta(self, -0.1, DeltaType.PERCENT))
 
     def action_page_up(self) -> None:
-        """Move the cursor one page up."""
-        self.post_message(self.PositionDelta(self, +5, True))
+        self.post_message(self.PositionDelta(self, +5, DeltaType.PERCENT))
 
     def action_page_down(self) -> None:
-        self.post_message(self.PositionDelta(self, -5, True))
+        self.post_message(self.PositionDelta(self, -5, DeltaType.PERCENT))
+
+    def action_zero(self) -> None:
+        self.post_message(self.PositionDelta(self, 0, DeltaType.FRACTION))
+
+    def action_half(self) -> None:
+        self.post_message(self.PositionDelta(self, 0.5, DeltaType.FRACTION))
+
+    def action_full(self) -> None:
+        self.post_message(self.PositionDelta(self, 1.0, DeltaType.FRACTION))
 
 
 class PercentageStatus(Label):
@@ -432,9 +449,12 @@ class PositionBar(Widget, can_focus=False):
     @on(Bar.PositionDelta)
     def _update_position(self, event) -> None:
         old_position = self.position
-        if event.percent:
-            pc1 = (self.position_max - self.position_min)/100.0
-            self.position = int(self.position + event.change*pc1)
+        if event.deltatype == DeltaType.PERCENT:
+            pc1 = (self.position_max - self.position_min) / 100.0
+            self.position = int(self.position + event.change * pc1)
+        elif event.deltatype == DeltaType.FRACTION:
+            fr = (self.position_max - self.position_min) * event.change
+            self.position = fr
         else:
             self.position = self.position + event.change
 
