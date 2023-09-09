@@ -1,5 +1,7 @@
 import asyncio
 import functools
+import collections
+import time
 from typing import (
     Any,
     Callable,
@@ -107,6 +109,7 @@ class TraitTable(DataTable, Generic[T]):
         self.fixtures: List[T] = fixtures
         self.traits: List[str] = []
         self.rk: Dict[T, RowKey] = {}
+        self.rupd: Dict[T, int] = collections.defaultdict(int)
         self.extra_columns = extra_columns
         traits_keys = {}
         for f in self.fixtures:
@@ -145,14 +148,14 @@ class TraitTable(DataTable, Generic[T]):
                 else:
                     formatter = TRAIT_FORMATTER_DICT[type(a)]
                     a._patch_listener(
-                        functools.partial(self.mk_listener, f, t, a, formatter)
+                        functools.partial(self.on_value_changed, f, t, a, formatter)
                     )
                     rowdata.append(formatter(a))
             except AttributeError:
                 rowdata.append(EMPTY_TEXT)
         return rowdata
 
-    def mk_listener(
+    def on_value_changed(
         self,
         fixture: T,
         trait_name: str,
@@ -160,6 +163,12 @@ class TraitTable(DataTable, Generic[T]):
         formatter: Callable[[Trait], Text],
         cause: Any,
     ) -> None:
+        k = (fixture, trait_name)
+        last_change = self.rupd[k]
+        t = time.time()
+        if t - last_change < 0.5:
+            return
+        self.rupd[k] = t
         self.update_cell(self.rk[fixture], trait_name, formatter(attr))
 
     def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
