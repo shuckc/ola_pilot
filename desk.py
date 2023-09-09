@@ -177,11 +177,23 @@ class FixtureController:
             out[name] = t.get_state_as_dict()
         return out
 
+    def get_global_as_dict(self) -> Dict[str, Any]:
+        out = {}
+        for name, t in self.objects_by_name.items():
+            out[name] = t.get_global_as_dict()
+        return out
+
     def set_state_from_dict(self, state) -> None:
         for name, t in state.items():
             obj = self.objects_by_name.get(name)
             if obj is not None:
                 obj.set_state(t)
+
+    def set_global_from_dict(self, state) -> None:
+        for name, t in state.items():
+            obj = self.objects_by_name.get(name)
+            if obj is not None:
+                obj.set_global(t)
 
     def save_preset(self, name: str) -> None:
         self.presets[name] = self.get_state_as_dict()
@@ -196,16 +208,19 @@ class FixtureController:
             with open(nm) as f:
                 d = json.loads(f.read())
             self.presets = d["presets"]
+            self.set_global_from_dict(d.get("global", {}))
         except FileNotFoundError:
             pass
 
     def save_showfile(self):
         d = {}
         d["presets"] = self.presets
+        d["global"] = self.get_global_as_dict()
         if self.showfile_name:
             with open(self.showfile_name, "w") as f:
                 json.dump(d, f, indent=2)
                 f.write("\n")
+
 
 
 class MidiCC:

@@ -19,10 +19,10 @@
 import functools
 import itertools
 import math
-from typing import Any, List
+from typing import Any, List, Dict
 
 from registration import EFX, register_efx, EnabledEFX
-from trait import RGB, Channel, IntensityChannel
+from trait import RGB, Channel, IntensityChannel, DegreesChannel, PTPos, IntChannel
 
 # Hash lookup table as defined by Ken Perlin.  This is a randomly
 # arranged array of all numbers from 0-255 inclusive.
@@ -318,6 +318,110 @@ class ChangeInBlack(EFX):
         if not self._blocked[i]:
             # forward change
             inch._copy_to(outch, src=self)
+
+
+@register_efx
+class PositionIndexer(EFX):
+    # stores preset home positions for moving heads, indexed by 'preset'. Configure
+    # by editing preset and c0...cN one at a time.
+    # inputs i0...iN are relative changes to the position
+    def __init__(self, channels=4, presets=2, is_global=True):
+        super().__init__()
+        self._outputs: List[PTPos] = []
+        self._inputs: List[Channel] = []
+        self._channels = channels
+        self._presets = presets
+        self.controlpts: List[PTPos] = []
+        self.preset = IntChannel(pos_max=presets - 1)
+        self.preset._patch_listener(self.on_preset_change)
+
+        self.width = DegreesChannel()
+        self.width._patch_listener(self.on_width_change)
+
+        self.data: List[List[PTPos]] = []
+        for i in range(channels):
+            ch_fg = []
+            for j in range(presets):
+                ch_fg.append(PTPos())
+            self.data.append(ch_fg)
+
+        for i in range(channels):
+            inch = Channel()
+            setattr(self, f"i{i}", inch)
+            self._inputs.append(inch)
+            inch._patch_listener(functools.partial(self.on_input_change, i))
+
+            control = PTPos(is_global=True)
+            self.controlpts.append(control)
+            setattr(self, f"c{i}", control)
+            control._patch_listener(
+                functools.partial(self.on_control_change, i, control)
+            )
+
+            och = PTPos()
+            self._outputs.append(och)
+            setattr(self, f"o{i}", och)
+
+    def tick(self, counter: float) -> None:
+        pass
+
+    def on_preset_change(self, src: Any):
+        p = self.preset.value.pos
+        self.switch_preset(p)
+
+    def switch_preset(self, p:int) -> None:
+        for ch in range(len(self._inputs)):
+            self.data[ch][p]._copy_to(self.controlpts[ch], src=self)
+            self.recalculate_ch(ch)
+
+    def on_width_change(self, src: Any):
+        for i in range(len(self._inputs)):
+            self.recalculate_ch(i)
+
+    def on_input_change(self, i, src: Any) -> None:
+        self.recalculate_ch(i)
+
+    def on_control_change(self, ch, control, src: Any) -> None:
+        if src == self:
+            return
+        p = self.preset.value.pos
+        control._copy_to(self.data[ch][p], src=self)
+        self.recalculate_ch(ch)
+
+    def recalculate_ch(self, ch: int) -> None:
+        p = self.preset.value.pos
+        control = self.data[ch][p]
+        inp = self._inputs[ch]
+        width = self.width.value.pos  # width in degrees
+
+        delta_degrees = inp.as_fraction() * width - (width / 2)
+        # decompose delta_degrees based on self.angle
+        pan = delta_degrees
+        tilt = delta_degrees
+        out = self._outputs[ch]
+        out.set_degrees_relative_to(control, pan, tilt)
+
+
+    def set_global(self, state: Dict[str, Any]) -> None:
+        # push our internal position data into global config
+        super().set_global(state)
+
+        for i in range(self._channels):
+            for j in range(self._presets):
+                k = f"data-{i}-{j}"
+                tr = state.get(k)
+                if tr:
+                    self.data[i][j].set_global(tr)
+        self.switch_preset(0)
+
+    def get_global_as_dict(self):
+        d = {}
+        for i in range(self._channels):
+            for j in range(self._presets):
+                k = f"data-{i}-{j}"
+                d[k] = self.data[i][j].get_state_as_dict()
+
+        return d
 
 
 if __name__ == "__main__":

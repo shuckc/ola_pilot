@@ -13,9 +13,10 @@ from channel import (
 
 
 class Trait(Observable, ABC):
-    def __init__(self):
+    def __init__(self, is_global=False):
         super().__init__()
         self.is_bound = False
+        self.is_global = is_global
 
     @abstractmethod
     def patch(self, data: UniverseType, base: int) -> None:
@@ -35,7 +36,21 @@ class Trait(Observable, ABC):
             t.add_state(k, d)
         return d
 
+    def get_global_as_dict(self) -> Dict[str, Any]:
+        d: Dict[str, Any] = {}
+        if self.is_global:
+            for k, t in self.channel_items():
+                t.add_global(k, d)
+        return d
+
     def set_state(self, data: Dict[str, Any]):
+        d = dict(list(self.channel_items()))
+        for k, t in data.items():
+            tr = d.get(k)
+            if tr is not None:
+                tr.set(t)
+
+    def set_global(self, data: Dict[str, Any]):
         d = dict(list(self.channel_items()))
         for k, t in data.items():
             tr = d.get(k)
@@ -179,20 +194,31 @@ class RGBA(RGB):
 
 
 class PTPos(Trait):
-    def __init__(self, pan_range=540, tilt_range=180):
-        super().__init__()
-        self._pan_range = pan_range
-        self._tilt_range = tilt_range
+    def __init__(self, pan_range=540, tilt_range=180, is_global=False):
+        super().__init__(is_global=is_global)
+        self.pan_range = pan_range
+        self.tilt_range = tilt_range
         self.pan = FineChannelProp()
         self.tilt = FineChannelProp()
         self.pan._patch_listener(self._changed)
         self.tilt._patch_listener(self._changed)
 
-    def set_rpos_deg(self, pan, tilt):
+    def set_degrees_pos(self, pan, tilt):
         # arguments in degress relative to straight down
-        pan = 0xFFFF * (0.5 + (pan / self._pan_range))
-        tilt = 0xFFFF * (0.5 + (tilt / self._tilt_range))
+        pan = self.pan.pos_max * (0.5 + (pan / self.pan_range))
+        tilt = self.tilt.pos_max * (0.5 + (tilt / self.tilt_range))
         self.set_pos(pan, tilt)
+
+    def get_degrees_mid(self) -> Tuple[float, float]:
+        pan = (self.pan.pos / self.pan.pos_max) - 0.5
+        tilt = (self.tilt.pos / self.tilt.pos_max) - 0.5
+        pan = pan * self.pan_range
+        tilt = tilt * self.tilt_range
+        return pan, tilt
+
+    def get_degrees_str(self) -> str:
+        p, t = self.get_degrees_mid()
+        return f"{p:.0f} {t:.0f}"
 
     def set_pos(self, pan, tilt):
         self.pan.set(pan)
@@ -206,6 +232,11 @@ class PTPos(Trait):
         other.pan.set(self.pan.pos)
         other.tilt.set(self.tilt.pos)
 
+    def set_degrees_relative_to(self, other: "PTPos", pan: float, tilt: float):
+        # relative part
+        rp, rt = other.get_degrees_mid()
+        self.set_degrees_pos(rp + pan, rt + tilt)
+
     def bind(self, other: Trait):
         if not isinstance(other, PTPos):
             raise ValueError()
@@ -216,14 +247,15 @@ class PTPos(Trait):
         raise ValueError()
 
     def duplicate(self):
-        return PTPos()
+        return PTPos(pan_range=self.pan_range, tilt_range=self.tilt_range)
 
 
 class Channel(Trait):
-    def __init__(self, value=0):
+    def __init__(self, value=0, pos_max=255):
         super().__init__()
-        self.value = ByteChannelProp(pos=value)
+        self.value = ByteChannelProp(pos=value, pos_max=pos_max)
         self.value._patch_listener(self._changed)
+        self.pos_max = pos_max
 
     def set(self, value):
         self.value.set(value)
@@ -244,15 +276,29 @@ class Channel(Trait):
         raise ValueError()
 
     def duplicate(self):
-        return Channel()
+        return Channel(pos_max=self.pos_max)
+
+    def as_fraction(self) -> float:
+        return self.value.pos / self.value.pos_max
 
 
 class IntensityChannel(Channel):
+    # same as channel except scaled by grandmaster when written as DMX
     def __init__(self, value=0):
         super().__init__()
 
     def duplicate(self):
         return IntensityChannel()
+
+
+class DegreesChannel(Channel):
+    def __init__(self, value=0, pos_max=180):
+        super().__init__(pos_max=pos_max)
+
+
+class IntChannel(Channel):
+    def __init__(self, value=0, pos_max=10):
+        super().__init__(pos_max=pos_max)
 
 
 class IndexedChannel(Trait):

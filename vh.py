@@ -9,6 +9,7 @@ from fx import (
     CosPulseEFX,
     StaticCopy,
     ChangeInBlack,
+    PositionIndexer,
 )
 from trait import IntensityChannel
 from pilot import OlaPilot

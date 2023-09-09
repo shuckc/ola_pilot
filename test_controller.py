@@ -5,7 +5,7 @@ import pytest
 
 from desk import FixtureController
 from registration import Fixture
-from trait import RGB, RGBA, RGBW, IndexedChannel
+from trait import RGB, RGBA, RGBW, IndexedChannel, PTPos
 
 
 class TestClient:
@@ -233,3 +233,30 @@ def test_controller_persist_skip_bound():
         "MockRGBFixture-0": {},
         "MockRGBFixture-1": {"wash": {"red": 0, "green": 0, "blue": 0}},
     }
+
+
+def test_ptpos():
+    # default position is 0,0
+    pt = PTPos(pan_range=540, tilt_range=180)
+    assert pt.pan.pos == 0
+    assert pt.tilt.pos == 0
+
+    p, t = pt.get_degrees_mid()
+    assert p == -270
+    assert t == -90
+
+    assert pt.get_degrees_str() == "-270 -90"
+    pt.set_degrees_pos(0, 0)
+
+    assert pt.pan.pos == 0x7FFF
+    assert pt.tilt.pos == 0x7FFF
+    # wierd?
+    assert pt.get_degrees_str() == "-0 -0"
+
+    p2 = pt.duplicate()
+    p2.set_degrees_relative_to(pt, 5, 3)
+    assert p2.get_degrees_str() == "5 3"
+
+    p3 = pt.duplicate()
+    p3.set_degrees_relative_to(p2, 10, -20)
+    assert p3.get_degrees_str() == "15 -17"

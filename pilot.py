@@ -44,10 +44,12 @@ from trait import (
     RGBW,
     Channel,
     IndexedChannel,
+    IntChannel,
     IntensityChannel,
     OnOffChannel,
     PTPos,
     Trait,
+    DegreesChannel,
 )
 from widgets import PositionBar
 
@@ -229,7 +231,7 @@ def fmt_hexblob(hexcolour: str) -> Text:
 
 
 def fmt_pos(pos: PTPos) -> Text:
-    return Text(f"{pos.pan.pos:5} {pos.tilt.pos:5}")
+    return fmt_str_inner(pos.get_degrees_str())
 
 
 def fmt_ch(channel: Channel) -> Text:
@@ -252,11 +254,11 @@ def fmt_intensity_inner(v: int) -> Text:
 
 def fmt_idxch(channel: IndexedChannel) -> Text:
     s = channel.get()
-    return fmt_idxch_inner(s)
+    return fmt_str_inner(s)
 
 
-@functools.lru_cache(maxsize=300)
-def fmt_idxch_inner(s: str) -> Text:
+@functools.lru_cache(maxsize=500)
+def fmt_str_inner(s: str) -> Text:
     return Text(s)
 
 
@@ -268,6 +270,14 @@ def fmt_on_off(channel) -> Text:
     return TEXT_ON_OFF[v]
 
 
+def fmt_degrees(channel: DegreesChannel) -> Text:
+    return fmt_str_inner(f"{channel.value.pos}°")
+
+
+def fmt_int_ch(channel: IntChannel) -> Text:
+    return fmt_str_inner(f"{channel.value.pos}")
+
+
 TRAIT_FORMATTER_DICT: Dict[type[Trait], Callable[[Trait], Text]] = {
     PTPos: fmt_pos,
     RGB: fmt_colour,
@@ -277,6 +287,8 @@ TRAIT_FORMATTER_DICT: Dict[type[Trait], Callable[[Trait], Text]] = {
     IntensityChannel: fmt_intensity,
     IndexedChannel: fmt_idxch,
     OnOffChannel: fmt_on_off,
+    DegreesChannel: fmt_degrees,
+    IntChannel: fmt_int_ch,
 }
 
 
