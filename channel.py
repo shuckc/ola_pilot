@@ -48,8 +48,9 @@ class ChannelProp(Observable, ABC):
     def add_state(self, key: str, d: Dict[str, Any]):
         d[key] = self.pos
 
-    def add_global(self, key:str, d: Dict[str, Any]):
+    def add_global(self, key: str, d: Dict[str, Any]):
         d[key] = self.pos
+
 
 class ByteChannelProp(ChannelProp):
     def _write_dmx(self):

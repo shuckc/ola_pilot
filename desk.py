@@ -222,7 +222,6 @@ class FixtureController:
                 f.write("\n")
 
 
-
 class MidiCC:
     def __init__(self, midi_in):
         self.midi_in = midi_in

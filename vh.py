@@ -41,13 +41,6 @@ def build_show(args):
     controller.add_fixture(par2 := LedJ7Q5RGBA(), 1, 89)
     controller.add_fixture(par3 := LedJ7Q5RGBA(), 1, 94)
 
-    mini0.pos.set_rpos_deg(0, 0)
-
-    efx = WavePT_EFX(wave=10)
-    controller.add_efx(efx)
-
-    # par2.wash.set_green(200)
-
     if args.midi_in:
         banks.bind_cc(70, efx.set_pan_midi)
         banks.bind_cc(71, efx.set_tilt_midi)
@@ -124,13 +117,28 @@ def build_show(args):
 
     controller.add_efx(cp)
 
-
+    intims = []
     for i in range(2):
         # patch these to the same base address, so each head is controlled separately
         intim_h0 = IntimidatorSpotDuo(head=0)
         intim_h1 = IntimidatorSpotDuo(head=1)
-        controller.add_fixture(intim_h0, 1, 99+i*20)
-        controller.add_fixture(intim_h1, 1, 99+i*20)
+        controller.add_fixture(intim_h0, 1, 99 + i * 20)
+        controller.add_fixture(intim_h1, 1, 99 + i * 20)
+        intims.extend([intim_h0, intim_h1])
+
+    p = PositionIndexer(is_global=True, presets=4)
+    controller.add_efx(p)
+    p.o0.bind(mini0.pos)
+    p.o1.bind(mini1.pos)
+    p.o2.bind(mini2.pos)
+    p.o3.bind(mini3.pos)
+
+    p = PositionIndexer(is_global=True, presets=4)
+    controller.add_efx(p)
+    p.o0.bind(intims[0].pos)
+    p.o1.bind(intims[1].pos)
+    p.o2.bind(intims[2].pos)
+    p.o3.bind(intims[3].pos)
 
     return controller
 

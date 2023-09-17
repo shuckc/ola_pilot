@@ -245,18 +245,26 @@ def test_ptpos():
     assert p == -270
     assert t == -90
 
-    assert pt.get_degrees_str() == "-270 -90"
-    pt.set_degrees_pos(0, 0)
+    assert pt.get_degrees_str() == "-270  -90"
 
+    pt.set_degrees_pos(0, 0)
     assert pt.pan.pos == 0x7FFF
     assert pt.tilt.pos == 0x7FFF
     # wierd?
-    assert pt.get_degrees_str() == "-0 -0"
+    assert pt.get_degrees_str() == "  -0   -0"
+    assert pt.get_state_as_dict() == {"pan": 32767, "tilt": 32767}
 
     p2 = pt.duplicate()
     p2.set_degrees_relative_to(pt, 5, 3)
-    assert p2.get_degrees_str() == "5 3"
+    assert p2.get_degrees_str() == "  +5   +3"
 
     p3 = pt.duplicate()
     p3.set_degrees_relative_to(p2, 10, -20)
-    assert p3.get_degrees_str() == "15 -17"
+    assert p3.get_degrees_str() == " +15  -17"
+
+    pt.set_degrees_pos(45, -45)
+    p4 = pt.duplicate()
+    assert p4.get_state_as_dict() == {"pan": 0, "tilt": 0}
+    p4.set_state(pt.get_state_as_dict())
+    assert p4.get_state_as_dict() == {"pan": 38228, "tilt": 16383}
+    assert p4.get_degrees_str() == " +45  -45"

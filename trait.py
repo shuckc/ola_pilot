@@ -32,8 +32,9 @@ class Trait(Observable, ABC):
 
     def get_state_as_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {}
-        for k, t in self.channel_items():
-            t.add_state(k, d)
+        if not self.is_global:
+            for k, t in self.channel_items():
+                t.add_state(k, d)
         return d
 
     def get_global_as_dict(self) -> Dict[str, Any]:
@@ -218,7 +219,7 @@ class PTPos(Trait):
 
     def get_degrees_str(self) -> str:
         p, t = self.get_degrees_mid()
-        return f"{p:.0f} {t:.0f}"
+        return f"{p:+4.0f} {t:+4.0f}"
 
     def set_pos(self, pan, tilt):
         self.pan.set(pan)

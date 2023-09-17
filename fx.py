@@ -401,7 +401,6 @@ class PositionIndexer(EFX):
         out = self._outputs[ch]
         out.set_degrees_relative_to(control, pan, tilt)
 
-
     def set_global(self, state: Dict[str, Any]) -> None:
         # push our internal position data into global config
         super().set_global(state)

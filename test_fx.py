@@ -1,6 +1,6 @@
 import pytest
 
-from fx import perlin, ColourInterpolateEFX, CosPulseEFX, ChangeInBlack
+from fx import perlin, ColourInterpolateEFX, CosPulseEFX, ChangeInBlack, PositionIndexer
 from trait import IndexedChannel
 
 
@@ -117,3 +117,59 @@ def test_change_in_black():
     colour_wheel.set("black")
     cib.tick(1.6)
     assert cib.o0.value.pos == 128
+
+
+def test_position_index():
+    pi = PositionIndexer(channels=1, presets=2)
+    pi.preset.set(0)
+    pi.c0.set_degrees_pos(0, 0)
+    assert pi.get_global_as_dict() == {
+        "data-0-0": {"pan": 32767, "tilt": 32767},
+        "data-0-1": {"pan": 0, "tilt": 0},
+    }
+    print(id(pi.data[0][0]))
+    print(id(pi.data[0][1]))
+
+    print(id(pi.data[0][0].pan))
+    print(id(pi.data[0][1].pan))
+
+    print(id(pi.data[0][0].tilt))
+    print(id(pi.data[0][1].tilt))
+
+    print(pi.data[0][0]._listeners)
+    print(pi.data[0][1]._listeners)
+    print(pi.data[0][0]._listeners)
+    print(pi.data[0][1]._listeners)
+
+    assert pi.get_state_as_dict() == {
+        "c0": {},
+        "i0": {"value": 0},
+        "o0": {"pan": 32767, "tilt": 32767},
+        "preset": {"value": 0},
+        "width": {"value": 0},
+    }
+    pi.preset.set(1)
+    assert pi.get_global_as_dict() == {
+        "data-0-0": {"pan": 32767, "tilt": 32767},
+        "data-0-1": {"pan": 0, "tilt": 0},
+    }
+    pi.c0.set_degrees_pos(15, -15)
+    pi.c0.get_degrees_str() == " +15  -15"
+    assert pi.get_global_as_dict() == {
+        "data-0-0": {"pan": 32767, "tilt": 32767},
+        "data-0-1": {"pan": 34587, "tilt": 27306},
+    }
+
+    pi.preset.set(0)
+    pi.c0.get_degrees_str() == "  +0   +0"
+    assert pi.get_state_as_dict() == {
+        "c0": {},
+        "i0": {"value": 0},
+        "o0": {"pan": 32767, "tilt": 27306},
+        "preset": {"value": 0},
+        "width": {"value": 0},
+    }
+    assert pi.get_global_as_dict() == {
+        "data-0-0": {"pan": 32767, "tilt": 32767},
+        "data-0-1": {"pan": 34587, "tilt": 27306},
+    }
