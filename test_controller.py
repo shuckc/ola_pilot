@@ -3,7 +3,7 @@ from array import array
 
 import pytest
 
-from desk import FixtureController
+from desk import Controller
 from registration import Fixture
 from trait import RGB, RGBA, RGBW, IndexedChannel, PTPos
 
@@ -19,8 +19,7 @@ def make_test_universe():
 
 @pytest.mark.asyncio
 async def test_fixture():
-    client = TestClient()
-    controller = FixtureController(client, update_interval=25)
+    controller = Controller(update_interval=25)
     controller.set_dmx(1, 0, 128)
     assert 1 in controller.universes
     assert controller.blackout is False
@@ -173,11 +172,11 @@ class MockRGBFixture(Fixture):
 
     def patch(self, universe, base, data):
         self.wash.patch(data, base)
+        super().patch(universe, base, data)
 
 
 def test_fixture_unpatched():
-    client = TestClient()
-    controller = FixtureController(client, update_interval=25)
+    controller = Controller(update_interval=25)
     f_unpatched = MockRGBFixture()
     assert f_unpatched.name is None
     assert f_unpatched.owner is None
@@ -201,9 +200,20 @@ def test_fixture_unpatched():
     assert uid2 == "MockRGBFixture-1"
 
 
+def test_fixture_add_and_patch():
+    controller = Controller(update_interval=25)
+    f = MockRGBFixture()
+    uid = controller.add_fixture(f, universe=2, base=30)
+
+    assert f.universe == 2
+    assert f.base == 30
+
+    f.wash.red.set(128)
+    assert controller.get_dmx(2, 30) == 128
+
+
 def test_controller_persist():
-    client = TestClient()
-    controller = FixtureController(client, update_interval=25)
+    controller = Controller(update_interval=25)
     uid = controller.add_fixture(f := MockRGBFixture())
     f.wash.red.set(128)
 
@@ -223,8 +233,7 @@ def test_controller_persist():
 
 def test_controller_persist_skip_bound():
     # traits bound to the value of another should not be saved in presets
-    client = TestClient()
-    controller = FixtureController(client, update_interval=25)
+    controller = Controller(update_interval=25)
     controller.add_fixture(f1 := MockRGBFixture())
     controller.add_fixture(f2 := MockRGBFixture())
     f2.wash.bind(f1.wash)  # writes to f2 are copied to f1

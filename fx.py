@@ -369,7 +369,7 @@ class PositionIndexer(EFX):
         p = self.preset.value.pos
         self.switch_preset(p)
 
-    def switch_preset(self, p:int) -> None:
+    def switch_preset(self, p: int) -> None:
         for ch in range(len(self._inputs)):
             self.data[ch][p]._copy_to(self.controlpts[ch], src=self)
             self.recalculate_ch(ch)

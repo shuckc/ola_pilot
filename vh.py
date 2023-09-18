@@ -1,7 +1,7 @@
 import argparse
 
 from fixtures import IbizaMini, LedJ7Q5RGBA, IntimidatorSpotDuo
-from desk import FixtureController, MidiCC, WavePT_EFX
+from desk import Controller, MidiCC, WavePT_EFX
 from fx import (
     ColourInterpolateEFX,
     PerlinNoiseEFX,
@@ -19,7 +19,8 @@ from rtmidi.midiutil import open_midiinput
 
 def build_show(args):
     client = OlaClient()
-    controller = FixtureController(client, update_interval=25)
+    controller = Controller(update_interval=25)
+    controller.add_output(client)
 
     if args.midi_in:
         midiin, port_name = open_midiinput(port="MPK")

@@ -92,6 +92,7 @@ class UniverseDisplay(Static):
 
     def on_mount(self) -> None:
         self.update_timer = self.set_interval(UPDATE_TIMER, self.update_time)
+        self.update_time()
 
     def update_time(self) -> None:
         st = self.data
@@ -199,7 +200,7 @@ class FixturesTable(TraitTable[Fixture]):
 
     def _get_basic(self, f: Fixture):
         return [
-            f.universe,
+            "-" if f.universe is None else f.universe,
             "-" if f.base is None else f.base + 1,
             f.ch,
             f.name,
@@ -359,7 +360,7 @@ class EditTraitScreen(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         g = Grid(
-            Label("Fixture"),
+            Label("Editing trait"),
             Label(self.ref),
             *self.controls,
         )

@@ -1,7 +1,7 @@
 Tutorial
 ========
 
-This is a simple example controlling a single RGB LED parcan with ola_pilot.
+This is a simple example controlling a single RGB LED par, set to address 50 with `ola_pilot` and `ola`.
 
 
 Prequisites
@@ -16,16 +16,15 @@ Now lets write a showfile `demo.py`:
 
 .. code-block:: python
 
-    from ola_pilot import controller, fixture, Fixture
+    from ola_pilot import Controller, Fixture
     from ola_pilot.trait import RGB
 
-    @fixture
     class ToyFixture(Fixture):
         wash = RGB()
 
     tf = ToyFixture()
-    controller.add_fixture(tf)
-    controller.patch_fixture(0, 50)
+    controller = Controller()
+    controller.add_fixture(tf, univ=0, base=50)
 
 We can launch this show file:
 
@@ -33,33 +32,40 @@ We can launch this show file:
 
     $ ola_pilot tui demo.py
 
-You will see the terminal UI, with the fixtures and patching shown. If we click the 'wash' attribute fixture, we can change the RGB values and see theDMX universe 0, addresses 50, 51 and 52 respond accordingly:
-
+You will see the terminal UI, with the fixtures and patching shown:
 
 .. raw:: html
     :file: screen-basic.svg
 
+Navigate in the terminal app using the cursor keys within a table (:kbd:`Up, Left, Right, Down`). Move to the 'wash' column for ToyFixture-0. Pressing :kbd:`Enter` edits a trait value, and :kbd:`Escape` dismisses the trait editor.
 
-The DMX universes are being calculated at the desired framerate, but not sent to any hardware. To do that setup some DMX hardware (ie. DMX adapters) using 'ola' and then connect our controller object to the ola instance, like this:
+Within the Trait Editor, pressing and :kbd:`Tab` (and :kbd:`Shift-tab`) moves the focus between the three sliders. We can make adjustments rapidly with the cursor keys as follows:
+
+* :kbd:`Up` and :kbd:`Down` move the value up or down by 0.1%.
+* :kbd:`PageUp` and :kbd:`PageDown` move by +10% or -10%.
+* :kbd:`F` jumps to the full value, :kbd:`Z` to zero and :kbd:`H` to halfway.
+
+As we change the RGB sliders the DMX (universe 0) addresses for R (50), G (51) and B (52) change accordingly:
+
+.. raw:: html
+    :file: screen-basic-change.svg
+
+The DMX universes are being calculated but not yet sent to any hardware. To do this setup some DMX hardware (ie. DMX adapters) using 'ola' and then connect our controller object to the ola instance, like this:
 
 .. code-block:: python
 
-    from ola_pilot import controller, fixture, Fixture, ola_client
+    from ola_pilot import controller, Fixture, ola_client
     from ola_pilot.trait import RGB
 
-    @fixture
     class ToyFixture(Fixture):
         wash = RGB()
 
-
     tf = ToyFixture()
-    controller.add_fixture(tf)
-    controller.patch_fixture(0, 50)
+    controller = Controller()
+    controller.add_fixture(tf, univ=0, base=50)
     controller.add_output(ola_client(host='localhost:8000'))
 
-This will connect to ola, fetch the list of universes, and any universes that intersect with what has been patched will be written to. For more advanced use cases, you can add a second `ola_client` handling other universes.
-
-This demonstrates manually controlling the RGB fixture through to the hardware
+This will connect to ola, fetch the list of universes, and any universes that intersect with what has been patched will be written to. For more advanced use cases, you can add a second `ola_client` handling other universes, and the ola instance can be running on the local machine or over a network.
 
 Patching list
 -------------
@@ -71,34 +77,6 @@ To create a patching list, do this:
     fixture             univ  base  channels  mode
     ToyFixture-0        0     50    3         -
 
-Running these commands are the equivelent of adding this line at the bottom of the showfile:
-
-.. code-block:: python
-
-    from ola_pilot import cli
-    cli('patch', controller)
-
-
-Fixtures in more detail
------------------------
-
-You might have some questions about the `ToyFixture` above.
-* how did it know to take 3 channels, and in what order
-* and what is the RGB object?
-
-.. code-block:: console
-
-    >>> tf = ToyFixture()
-    >>> tf.get_channel_count()
-    3
-    >>> tf.get_traits()
-    [wash]
-    >>> tf.get_channels()
-    [wash.red, wash.green, wash.blue]
-    >>> tf.get_heads()
-    [wash]
-
-The answer is that the default `Fixture` base class iterates all the traits of the fixture in the definition order and asumes no gaps between then. Since an RGB Trait has three channels, they get allocated sequentially.
 We can also get a per-channel view:
 
 .. code-block:: console
@@ -109,7 +87,27 @@ We can also get a per-channel view:
     ToyFixture-0        0     51    1        wash.green
     ToyFixture-0        0     52    2        wash.blue
 
-Another example, `demo2.py`
+You might have some questions about the `ToyFixture` above.
+
+* how did it know to take 3 channels, and in what order
+* and what is the `RGB` object?
+
+The default `Fixture` base class constructor iterates the dictionary-view of the `Class` looking for standard Traits (PTPos, RGB, Intensity, IndexedValue) and duplicates them as fields on the instance. It then iterates the traits in order, and queries their channels, asuming no gaps between then. Since an `RGB` Trait has three channels, they get allocated sequentially.
+
+.. code-block:: console
+
+    >>> tf = ToyFixture()
+    >>> tf.get_channel_count()
+    3
+    >>> tf.get_traits()
+    [wash]
+    >>> tf.get_channels()
+    [wash.red, wash.green, wash.blue]
+
+Controlling a Moving Head
+-------------------------
+
+Another example `demo2.py`, using multiple Traits:
 
 .. code-block:: python
 
@@ -118,27 +116,29 @@ Another example, `demo2.py`
         wash = RGBW(order='WRGB')
         intentity = Intensity()
 
-    controller.patch_fixture(0, 5, ToyMovingHead())
-    from ola_pilot import cli
-    cli('channels', controller)
+    controller.add_fixture(0, 5, ToyMovingHead())
 
 .. code-block:: console
 
-    $ python demo2.py
+    $ ola_pilot patch demo2.py
+    fixture             univ  base  channels  mode
+    ToyMovingHead-0     0     50    3         -
+
+    $ ola_pilot channels demo2.py
     fixture             univ  addr  channel  mode
-    ToyFixture-0        0     5     0        pos.pan
-    ToyFixture-0        0     6     1        pos.pan_fine
-    ToyFixture-0        0     7     2        pos.tilt
-    ToyFixture-0        0     8     3        pos.tilt_fine
-    ToyFixture-0        0     9     4        wash.white
-    ToyFixture-0        0     10    5        wash.red
-    ToyFixture-0        0     11    6        wash.green
-    ToyFixture-0        0     12    7        wash.blue
-    ToyFixture-0        0     13    8        intensity.value
+    ToyMovingHead-0     0     5     0        pos.pan
+    ToyMovingHead-0     0     6     1        pos.pan_fine
+    ToyMovingHead-0     0     7     2        pos.tilt
+    ToyMovingHead-0     0     8     3        pos.tilt_fine
+    ToyMovingHead-0     0     9     4        wash.white
+    ToyMovingHead-0     0     10    5        wash.red
+    ToyMovingHead-0     0     11    6        wash.green
+    ToyMovingHead-0     0     12    7        wash.blue
+    ToyMovingHead-0     0     13    8        intensity.value
 
 
-Exploring the Graph
--------------------
+Controlling Multiple Fixtures
+-----------------------------
 
 We now want to patch a second RGB LED, and drive a signal to it from a MIDI controller
 
@@ -200,6 +200,7 @@ If we connect two drivers to an input, we need to decide which value wins:
     h2.intensity.set(0.3)
 
 Here should the lights be a hue of 0.1 purple or 0.5 red? There are several common stratagies:
+
 * HTP highest-takes-precidence
 * LTP last-takes-precidence
 * PTP priority-takes-precidence

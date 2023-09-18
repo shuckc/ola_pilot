@@ -18,8 +18,6 @@ from rtmidi.midiconstants import (
     PROGRAM_CHANGE,
 )
 from rtmidi.midiutil import open_midiinput
-
-from aio_ola import OlaClient
 from fixtures import IbizaMini, LedJ7Q5RGBA
 from fx import ColourInterpolateEFX, PerlinNoiseEFX
 from registration import (
@@ -55,7 +53,7 @@ class WavePT_EFX(EFX):
         wave_p = wave * math.cos(self.orientation)
         wave_t = wave * math.sin(self.orientation)
 
-        self.o0.set_rpos_deg(
+        self.o0.set_degrees_pos(
             360 * ((self.pan_midi / 127) - 0.5),
             360 * ((self.tilt_midi / 127) - 0.5) + wave,
         )
@@ -70,10 +68,18 @@ class WavePT_EFX(EFX):
         self.wave = wave
 
 
-class FixtureController:
-    def __init__(self, client, update_interval=25):
+class ControllerUniverseOutput:
+    async def set_dmx(self, universe: int, buffer):
+        pass
+
+    async def connect():
+        pass
+
+
+class Controller:
+    def __init__(self, update_interval=25):
         self._update_interval: int = update_interval
-        self._client = client
+        self.outputs = []
         self.fixtures: List[Fixture] = []
         self.pollable = []
         self.efx = []
@@ -91,7 +97,7 @@ class FixtureController:
         self.showfile_name: Optional[str] = None
 
     async def run(self):
-        self._conn_task = asyncio.create_task(self._client.connect())
+        self._conn_task = [asyncio.create_task(o.connect()) for o in self.outputs]
 
         while True:
             before = time.time()
@@ -108,11 +114,12 @@ class FixtureController:
             pollable.tick(self.showtime)
 
         # Send the DMX data
-        for universe, data in self.universes.items():
-            if self.blackout:
-                await self._client.set_dmx(universe, self._blackout_buffer)
-            else:
-                await self._client.set_dmx(universe, data)
+        for o in self.outputs:
+            for universe, data in self.universes.items():
+                if self.blackout:
+                    await o.set_dmx(universe, self._blackout_buffer)
+                else:
+                    await o.set_dmx(universe, data)
 
     def _own_and_name(self, thing: ThingWithTraits) -> str:
         # take ownership and provide unique name
@@ -143,8 +150,12 @@ class FixtureController:
         return uid
 
     def patch_fixture(self, fixture: Fixture, universe=None, base=None):
+        if fixture not in self.fixtures:
+            raise ValueError("Add fixture first")
         univ = self._get_universe(universe)
         fixture.patch(universe, base, data=univ)
+        if fixture.base != base:
+            raise ValueError("fixture.patch did not call superclass")
 
     def _get_universe(self, universe: int):
         if universe not in self.universes:
@@ -155,6 +166,9 @@ class FixtureController:
         uid = self._own_and_name(efx)
         self.efx.append(efx)
         return uid
+
+    def add_output(self, output: ControllerUniverseOutput) -> None:
+        self.outputs.append(output)
 
     def add_pollable(self, pollable):
         self.pollable.append(pollable)
@@ -283,8 +297,7 @@ def build_show():
     parser.add_argument("-m", "--midi-in", action="store_true")
     args = parser.parse_args()
 
-    client = OlaClient()
-    controller = FixtureController(client, update_interval=25)
+    controller = Controller(update_interval=25)
 
     if args.midi_in:
         midiin, port_name = open_midiinput(port="MPK")
@@ -312,7 +325,7 @@ def build_show():
 
     # mini.wash.set_red(200)
     mini0.wash.set_green(200)
-    mini0.pos.set_rpos_deg(0, 0)
+    mini0.pos.set_degrees_pos(0, 0)
     mini0.spot.set(150)
 
     efx = WavePT_EFX(wave=10)
