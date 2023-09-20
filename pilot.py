@@ -46,7 +46,7 @@ from trait import (
     IndexedChannel,
     IntChannel,
     IntensityChannel,
-    OnOffChannel,
+    OnOffTrait,
     PTPos,
     Trait,
     DegreesChannel,
@@ -287,7 +287,7 @@ TRAIT_FORMATTER_DICT: Dict[type[Trait], Callable[[Trait], Text]] = {
     Channel: fmt_ch,
     IntensityChannel: fmt_intensity,
     IndexedChannel: fmt_idxch,
-    OnOffChannel: fmt_on_off,
+    OnOffTrait: fmt_on_off,
     DegreesChannel: fmt_degrees,
     IntChannel: fmt_int_ch,
 }

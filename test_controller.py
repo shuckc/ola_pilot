@@ -1,11 +1,11 @@
 import itertools
 from array import array
-
+from typing import Any
 import pytest
 
 from desk import Controller
 from registration import Fixture
-from trait import RGB, RGBA, RGBW, IndexedChannel, PTPos
+from trait import RGB, RGBA, RGBW, IndexedChannel, PTPos, IntensityChannel
 
 
 class TestClient:
@@ -85,31 +85,36 @@ def test_indexed_channel():
     assert u[5] == 40
 
 
-def test_changed_hook():
-    c = itertools.count()
+class change_counter:
+    def __init__(self):
+        self.changes = 0
 
-    def changed(thing):
-        # traceback.print_stack(limit=5)
-        next(c)
+    def changed(self, source: Any):
+        self.changes += 1
+
+
+def test_changed_hook():
+    cc = change_counter()
+    assert cc.changes == 0
 
     r = RGB()
     assert len(r._listeners) == 0
-    assert len(r.red._listeners) == 1  # trait listens to channel
-    r._patch_listener(changed)
+    r._patch_listener(cc.changed)
     assert len(r._listeners) == 1  # we are listening to trait
     r.set_red(255)
     r.set_green(127)
-    assert next(c) == 2
+    assert cc.changes == 2
 
     g = RGB()
     g.set_rgb(0, 255, 0)
     g._copy_to(r, None)
-    assert next(c) == 4
+    assert cc.changes == 3
 
 
 def test_trait_bind():
     r = RGB()
     r2 = RGB()
+    cc = change_counter()
 
     assert not r2.is_bound
 
@@ -127,11 +132,24 @@ def test_trait_bind():
     r3 = RGB()
     r.bind(r3)
 
+    # a change counter on r3 should be invoked by changes to r
     assert r3.is_bound
+    r3._patch_listener(cc.changed)
 
     r.set_red(30)
     assert r2.red.pos == 30
     assert r3.red.pos == 30
+    assert cc.changes == 1
+
+
+def test_intensity_bind():
+    r1 = IntensityChannel()
+    r2 = IntensityChannel()
+    cc = change_counter()
+    r2._patch_listener(cc.changed)
+    r1.bind(r2)
+    r1.set(40)
+    assert cc.changes == 1
 
 
 def test_rgbw_downsample():

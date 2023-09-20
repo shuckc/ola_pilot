@@ -1,15 +1,29 @@
 import functools
 from abc import ABC, abstractmethod
-from typing import Any, List, Iterator, Tuple, Dict
+from typing import Any, List, Iterator, Tuple, Dict, Callable
 
 from channel import (
     ByteChannelProp,
     FineChannelProp,
-    Observable,
     UniverseType,
     ChannelProp,
     IndexedByteChannelProp,
 )
+
+
+class Observable:
+    def __init__(self):
+        self._listeners: List[Callable[[Any], None]] = []
+        super().__init__()
+
+    def _patch_listener(self, listener: Callable[["Trait"], None]) -> None:
+        self._listeners.append(listener)
+
+    def _changed(self, change_from: Any) -> None:
+        if change_from == self:
+            return
+        for l in self._listeners:
+            l(change_from)
 
 
 class Trait(Observable, ABC):
@@ -46,10 +60,13 @@ class Trait(Observable, ABC):
 
     def set_state(self, data: Dict[str, Any]):
         d = dict(list(self.channel_items()))
+        changed = False
         for k, t in data.items():
             tr = d.get(k)
             if tr is not None:
-                tr.set(t)
+                changed = changed | tr.set(t)
+        if changed:
+            self._changed(None)
 
     def set_global(self, data: Dict[str, Any]):
         d = dict(list(self.channel_items()))
@@ -76,35 +93,44 @@ class RGB(Trait):
         self.green = ByteChannelProp()
         self.blue = ByteChannelProp()
 
-        self.red._patch_listener(self._changed)
-        self.green._patch_listener(self._changed)
-        self.blue._patch_listener(self._changed)
+    # TODO value from HSV or HSI
 
-    def set_red(self, red):
-        # TODO value from HSV or HSI
-        self.red.set(red)
+    def set_red(self, red) -> bool:
+        if self.red.set(red):
+            self._changed(None)
+            return True
+        return False
 
-    def set_green(self, green):
-        self.green.set(green)
+    def set_green(self, green) -> bool:
+        if self.green.set(green):
+            self._changed(None)
+            return True
+        return False
 
-    def set_blue(self, blue):
-        self.blue.set(blue)
+    def set_blue(self, blue) -> bool:
+        if self.blue.set(blue):
+            self._changed(None)
+            return True
+        return False
 
-    def set_rgb(self, red, green, blue):
+    def set_rgb(self, red, green, blue) -> bool:
         # because we listen to red, green, blue, set ourselves as the source
         # so that we drop rather than propagate the change 3 times
-        self.red.set(red, source=self)
-        self.green.set(green, source=self)
-        self.blue.set(blue, source=self)
-        self._changed(None)
+        changed = False
+        changed |= self.red.set(red, source=self)
+        changed |= self.green.set(green, source=self)
+        changed |= self.blue.set(blue, source=self)
+        if changed:
+            self._changed(None)
+        return changed
 
-    def set_hex(self, hexstr):
+    def set_hex(self, hexstr) -> bool:
         if hexstr.startswith("#"):
             hexstr = hexstr[1:]
         if len(hexstr) != 6:
             raise ValueError("not 6-digit hex string")
         r, g, b = int(hexstr[0:2], 16), int(hexstr[2:4], 16), int(hexstr[4:6], 16)
-        self.set_rgb(r, g, b)
+        return self.set_rgb(r, g, b)
 
     def get_approx_rgb(self):
         return self.red.pos, self.green.pos, self.blue.pos
@@ -150,14 +176,16 @@ class RGBW(RGB):
     def __init__(self):
         super().__init__()
         self.white = ByteChannelProp()
-        self.white._patch_listener(self._changed)
 
     def patch(self, data: UniverseType, base: int) -> None:
         super().patch(data, base)
         self.white.patch(data, base + 3)
 
     def set_white(self, white):
-        self.white.set(white)
+        if self.white.set(white):
+            self._changed(None)
+            return True
+        return False
 
     def get_approx_rgb(self):
         r, g, b = super().get_approx_rgb()
@@ -174,10 +202,12 @@ class RGBA(RGB):
     def __init__(self):
         super().__init__()
         self.amber = ByteChannelProp()
-        self.amber._patch_listener(self._changed)
 
     def set_amber(self, amber):
-        self.amber.set(amber)
+        if self.amber.set(amber):
+            self._changed(None)
+            return True
+        return False
 
     def patch(self, data: UniverseType, base: int) -> None:
         super().patch(data, base)
@@ -201,14 +231,12 @@ class PTPos(Trait):
         self.tilt_range = tilt_range
         self.pan = FineChannelProp()
         self.tilt = FineChannelProp()
-        self.pan._patch_listener(self._changed)
-        self.tilt._patch_listener(self._changed)
 
-    def set_degrees_pos(self, pan, tilt):
+    def set_degrees_pos(self, pan, tilt) -> bool:
         # arguments in degress relative to straight down
         pan = self.pan.pos_max * (0.5 + (pan / self.pan_range))
         tilt = self.tilt.pos_max * (0.5 + (tilt / self.tilt_range))
-        self.set_pos(pan, tilt)
+        return self.set_pos(pan, tilt)
 
     def get_degrees_mid(self) -> Tuple[float, float]:
         pan = (self.pan.pos / self.pan.pos_max) - 0.5
@@ -221,22 +249,25 @@ class PTPos(Trait):
         p, t = self.get_degrees_mid()
         return f"{p:+4.0f} {t:+4.0f}"
 
-    def set_pos(self, pan, tilt):
-        self.pan.set(pan)
-        self.tilt.set(tilt)
+    def set_pos(self, pan, tilt) -> bool:
+        changed = False
+        changed |= self.pan.set(pan)
+        changed |= self.tilt.set(tilt)
+        if changed:
+            self._changed(None)
+        return changed
 
     def patch(self, data: UniverseType, base: int) -> None:
         self.pan.patch(data, base + 0)
         self.tilt.patch(data, base + 2)
 
     def _copy_to(self, other: "PTPos", src: Any):
-        other.pan.set(self.pan.pos)
-        other.tilt.set(self.tilt.pos)
+        other.set_pos(self.pan.pos, self.tilt.pos)
 
-    def set_degrees_relative_to(self, other: "PTPos", pan: float, tilt: float):
+    def set_degrees_relative_to(self, other: "PTPos", pan: float, tilt: float) -> bool:
         # relative part
         rp, rt = other.get_degrees_mid()
-        self.set_degrees_pos(rp + pan, rt + tilt)
+        return self.set_degrees_pos(rp + pan, rt + tilt)
 
     def bind(self, other: Trait):
         if not isinstance(other, PTPos):
@@ -255,17 +286,19 @@ class Channel(Trait):
     def __init__(self, value=0, pos_max=255):
         super().__init__()
         self.value = ByteChannelProp(pos=value, pos_max=pos_max)
-        self.value._patch_listener(self._changed)
         self.pos_max = pos_max
 
-    def set(self, value):
-        self.value.set(value)
+    def set(self, value) -> bool:
+        if self.value.set(value):
+            self._changed(None)
+            return True
+        return False
 
     def patch(self, data: UniverseType, base: int) -> None:
         self.value.patch(data, base)
 
     def _copy_to(self, other: "Channel", src: Any):
-        other.value.set(self.value.pos)
+        other.set(self.value.pos)
 
     def bind(self, other: Trait):
         if not isinstance(other, Channel):
@@ -307,10 +340,12 @@ class IndexedChannel(Trait):
         super().__init__()
         self.value = IndexedByteChannelProp(values)
         self.values = values
-        self.value._patch_listener(self._changed)
 
-    def set(self, value: str):
-        self.value.set_key(value)
+    def set(self, value: str) -> bool:
+        changed = self.value.set_key(value)
+        if changed:
+            self._changed(None)
+        return changed
 
     def patch(self, data: UniverseType, base: int) -> None:
         self.value.patch(data, base)
@@ -338,14 +373,14 @@ class IndexedChannel(Trait):
         return IndexedChannel(values=self.values)
 
 
-class OnOffChannel(Trait):
+class OnOffTrait(Trait):
     def __init__(self, value=0):
         self.value = ByteChannelProp(pos=value, pos_max=1)
-        self.value._patch_listener(self._changed)
         super().__init__()
 
     def set(self, value):
         self.value.set(value)
+        self._changed(None)
 
     def patch(self, data: UniverseType, base: int) -> None:
         self.value.patch(data, base)

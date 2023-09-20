@@ -4,22 +4,7 @@ from typing import Any, Callable, List, MutableSequence, TypeAlias, Optional, Di
 UniverseType: TypeAlias = MutableSequence[int]
 
 
-class Observable:
-    def __init__(self):
-        self._listeners: List[Callable[[Any], None]] = []
-        super().__init__()
-
-    def _patch_listener(self, listener: Callable[["ChannelProp"], None]) -> None:
-        self._listeners.append(listener)
-
-    def _changed(self, change_from: Any) -> None:
-        if change_from == self:
-            return
-        for l in self._listeners:
-            l(change_from)
-
-
-class ChannelProp(Observable, ABC):
+class ChannelProp(ABC):
     # Note that pos_max is a valid value of pos, ie. max is inclusive
     def __init__(self, pos_min: int = 0, pos_max: int = 255, pos: int = 0, units=""):
         super().__init__()
@@ -34,12 +19,13 @@ class ChannelProp(Observable, ABC):
         self.base = base
         self._write_dmx()
 
-    def set(self, value: int, source=None):
+    def set(self, value: int, source=None) -> bool:
         np = min(self.pos_max, max(self.pos_min, int(value)))
-        if np != self.pos:
-            self.pos = np
+        changed = np != self.pos
+        self.pos = np
+        if changed:
             self._write_dmx()
-            self._changed(source)
+        return changed
 
     @abstractmethod
     def _write_dmx(self):
@@ -81,7 +67,7 @@ class IndexedByteChannelProp(ByteChannelProp):
         if self.data:
             self.data[self.base] = v
 
-    def set_key(self, key: str) -> None:
+    def set_key(self, key: str) -> bool:
         pos: int = self.keys_to_pos.get(key, 0)
         print(f" set by key {key} to pos {pos} using {self.keys_to_pos}")
-        super().set(pos)
+        return super().set(pos)

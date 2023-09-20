@@ -127,19 +127,11 @@ def test_position_index():
         "data-0-0": {"pan": 32767, "tilt": 32767},
         "data-0-1": {"pan": 0, "tilt": 0},
     }
+    assert pi.c0.get_degrees_str() == "  -0   -0"
+    assert pi.o0.get_degrees_str() == "  -0   -0"
+
     print(id(pi.data[0][0]))
     print(id(pi.data[0][1]))
-
-    print(id(pi.data[0][0].pan))
-    print(id(pi.data[0][1].pan))
-
-    print(id(pi.data[0][0].tilt))
-    print(id(pi.data[0][1].tilt))
-
-    print(pi.data[0][0]._listeners)
-    print(pi.data[0][1]._listeners)
-    print(pi.data[0][0]._listeners)
-    print(pi.data[0][1]._listeners)
 
     assert pi.get_state_as_dict() == {
         "c0": {},
@@ -153,19 +145,29 @@ def test_position_index():
         "data-0-0": {"pan": 32767, "tilt": 32767},
         "data-0-1": {"pan": 0, "tilt": 0},
     }
+    # output has switched
+    assert pi.get_state_as_dict() == {
+        "c0": {},
+        "i0": {"value": 0},
+        "o0": {"pan": 0, "tilt": 0},
+        "preset": {"value": 1},
+        "width": {"value": 0},
+    }
+    # change preset 1 values by control input
     pi.c0.set_degrees_pos(15, -15)
-    pi.c0.get_degrees_str() == " +15  -15"
+    assert pi.c0.get_degrees_str() == " +15  -15"
+    assert pi.o0.get_degrees_str() == " +15  -15"
     assert pi.get_global_as_dict() == {
         "data-0-0": {"pan": 32767, "tilt": 32767},
         "data-0-1": {"pan": 34587, "tilt": 27306},
     }
-
+    # fails here
     pi.preset.set(0)
     pi.c0.get_degrees_str() == "  +0   +0"
     assert pi.get_state_as_dict() == {
         "c0": {},
         "i0": {"value": 0},
-        "o0": {"pan": 32767, "tilt": 27306},
+        "o0": {"pan": 32767, "tilt": 32767},
         "preset": {"value": 0},
         "width": {"value": 0},
     }

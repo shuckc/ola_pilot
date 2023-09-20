@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Any, Iterator, Tuple, Dict
 
 from channel import UniverseType
-from trait import OnOffChannel, Trait
+from trait import OnOffTrait, Trait
 
 
 class ThingWithTraits:
@@ -72,7 +72,7 @@ class EFX(ThingWithTraits):
 class EnabledEFX:
     def __init__(self):
         super().__init__()
-        self.enabled = OnOffChannel()
+        self.enabled = OnOffTrait()
 
 
 fixture_class_list: List[type[Fixture]] = []
