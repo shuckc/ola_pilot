@@ -239,6 +239,23 @@ All inputs including every trait of every fixture, can have a default value save
     midi.bind_note(63, fl.trigger)
 
 
+We can ask an output for the list of it's drivers:
+
+.. code-block:: python
+
+   >>> tf1.wash.drivers()
+   [
+     [ToyFixture-0  wash] <- [rgb  HueToRGB-0  hue] <- 0.5,
+     [ToyFixture-0  wash] <- [rgb  HueToRGB-0  intensity] <- 0.5
+     [ToyFixture-0  wash] <- [rgb  HueToRGB-0  hue] <- [cc83  RTMIDI]
+     [ToyFixture-0  wash] <- [rgb  HueToRGB-0  intensity] <- [cc84  RTMIDI]
+     [ToyFixture-0  wash] <- [rgb  Flasher-0  speed] <- [cc85  RTMIDI]
+     [ToyFixture-0  wash] <- [rgb  Flasher-0  trigger] <- [note63  RTMIDI]
+   ]
+
+This tracing is possible because `Trait.bind(other)` records both sides of the binding, and *within* an EFX implementation, we use `Trait.drives(other)` to record the dependancy, even though it is calculated by code.
+
+
 Webserver
 ---------
 

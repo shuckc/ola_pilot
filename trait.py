@@ -58,6 +58,12 @@ class Trait(Observable, ABC):
                 t.add_global(k, d)
         return d
 
+    def set_single(self, channel: ChannelProp, value: int) -> bool:
+        changed = channel.set(value)
+        if changed:
+            self._changed(None)
+        return changed
+
     def set_state(self, data: Dict[str, Any]):
         d = dict(list(self.channel_items()))
         changed = False

@@ -376,8 +376,7 @@ class EditTraitScreen(ModalScreen[None]):
 
     @on(PositionBar.PositionChanged)
     def on_position_changed(self, event):
-        # self.query_one("#last_value", Label).update(f"Last value: {event}")
-        self.pos_to_ch[event.bar].set(event.position)
+        self.trait.set_single(self.pos_to_ch[event.bar], event.position)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         # if event.button.id == "quit":
