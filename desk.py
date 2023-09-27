@@ -72,7 +72,7 @@ class ControllerUniverseOutput:
     async def set_dmx(self, universe: int, buffer):
         pass
 
-    async def connect():
+    async def connect(self):
         pass
 
 

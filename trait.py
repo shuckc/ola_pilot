@@ -391,11 +391,11 @@ class OnOffTrait(Trait):
     def patch(self, data: UniverseType, base: int) -> None:
         self.value.patch(data, base)
 
-    def _copy_to(self, other: "OnOffChannel", src: Any):
+    def _copy_to(self, other: "OnOffTrait", src: Any):
         other.value.set(self.value.pos)
 
     def bind(self, other: Trait):
-        if not isinstance(other, OnOffChannel):
+        if not isinstance(other, OnOffTrait):
             raise ValueError()
         super().bind(other)
         self._patch_listener(functools.partial(self._copy_to, other))
@@ -404,4 +404,4 @@ class OnOffTrait(Trait):
         raise ValueError()
 
     def duplicate(self):
-        return OnOffChannel()
+        return OnOffTrait()

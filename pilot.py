@@ -19,6 +19,7 @@ from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Grid, Horizontal, ScrollableContainer, Vertical
+from rich.console import RenderableType
 from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import (
@@ -57,7 +58,18 @@ BLACKOUT_DICT = {True: "[BLACKOUT]", False: ""}
 UPDATE_TIMER = 1 / 10
 
 
-class ShowtimeDisplay(Static):
+class NoReLayoutStatic(Static):
+    def update(self, renderable: RenderableType = "") -> None:
+        """Update the widget's content area with new text or Rich renderable.
+
+        Args:
+            renderable: A new rich renderable. Defaults to empty renderable;
+        """
+        self.renderable = renderable
+        self.refresh(layout=False)
+
+
+class ShowtimeDisplay(NoReLayoutStatic):
     """A widget to display show time, fps"""
 
     def __init__(
@@ -79,8 +91,7 @@ class ShowtimeDisplay(Static):
             + f"{self.controller.fps:02.0f}/{self.controller.target_fps:02.0f}  {BLACKOUT_DICT[self.controller.blackout]}"
         )
 
-
-class UniverseDisplay(Static):
+class UniverseDisplay(NoReLayoutStatic):
     def __init__(
         self,
         universe,
