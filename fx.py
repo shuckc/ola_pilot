@@ -133,7 +133,7 @@ def lerp(a: float, b: float, x: float) -> float:
 
 @register_efx
 class PerlinNoiseEFX(EnabledEFX, EFX):
-    def __init__(self, count=0, trunc=math.sqrt(0.5)):
+    def __init__(self, count=0, trunc=math.sqrt(0.5)) -> None:
         self.speed = Channel()
         super().__init__()
         self._trunc = trunc
@@ -163,9 +163,9 @@ class ColourInterpolateEFX(EnabledEFX, EFX):
     # Abstract  0x5571FF, 0x00FFFF, 0xFF00FF, 0xFFFF00
     # Ocean     0x003AB9, 0x02EAFF
 
-    def __init__(self, channels=0, controlpts=4, steps=100):
+    def __init__(self, channels=0, controlpts=4, steps=100) -> None:
         super().__init__()
-        self._control_points = []
+        self._control_points: List[RGB] = []
         self._steps = steps
 
         for i in range(controlpts):
@@ -192,7 +192,7 @@ class ColourInterpolateEFX(EnabledEFX, EFX):
         if self.enabled.value.pos > 0:
             n._copy_to(outch, None)
 
-    def interpolate(self, control_points):
+    def interpolate(self, control_points: List[RGB]) -> List[RGB]:
         o = []
         for i, j in itertools.pairwise(control_points):
             if i.get_approx_rgb() != j.get_approx_rgb():
@@ -207,7 +207,7 @@ class ColourInterpolateEFX(EnabledEFX, EFX):
 
 @register_efx
 class StaticColour(EnabledEFX, EFX):
-    def __init__(self, trait_type=RGB):
+    def __init__(self, trait_type=RGB) -> None:
         super().__init__()
         self.c0 = trait_type()
 
@@ -219,7 +219,7 @@ class StaticColour(EnabledEFX, EFX):
 
 @register_efx
 class StaticCopy(EnabledEFX, EFX):
-    def __init__(self, of_trait=None):
+    def __init__(self, of_trait=None) -> None:
         super().__init__()
         self.c0 = of_trait.duplicate()
 
@@ -231,7 +231,7 @@ class StaticCopy(EnabledEFX, EFX):
 
 @register_efx
 class CosPulseEFX(EnabledEFX, EFX):
-    def __init__(self, trait_type=IntensityChannel, channels=4):
+    def __init__(self, trait_type=IntensityChannel, channels=4) -> None:
         super().__init__()
         self.speed = Channel()
         self.channels = channels
@@ -264,7 +264,7 @@ class ChangeInBlack(EFX):
     # channel for blackout seconds
     def __init__(
         self, channels=4, changes=[], blackout=0.3, trait_type=IntensityChannel
-    ):
+    ) -> None:
         super().__init__()
 
         self._lastchange: List[float] = []
@@ -299,7 +299,7 @@ class ChangeInBlack(EFX):
                 if not self._blocked[i]:
                     self._blocked[i] = True
                     self.black._copy_to(o, src=self)
-                desired = self.black
+                # desired = self.black
             else:
                 # recovered
                 if self._blocked[i]:
@@ -325,7 +325,7 @@ class PositionIndexer(EFX):
     # stores preset home positions for moving heads, indexed by 'preset'. Configure
     # by editing preset and c0...cN one at a time.
     # inputs i0...iN are relative changes to the position
-    def __init__(self, channels=4, presets=2, is_global=True):
+    def __init__(self, channels=4, presets=2, is_global=True) -> None:
         super().__init__()
         self._outputs: List[PTPos] = []
         self._inputs: List[Channel] = []

@@ -8,10 +8,8 @@ from typing import (
     Dict,
     Generic,
     List,
-    Tuple,
     TypeVar,
     Optional,
-    Iterable,
 )
 
 from rich.text import Text
@@ -123,7 +121,7 @@ class TraitTable(DataTable, Generic[T]):
         self.fixtures: List[T] = fixtures
         self.traits: List[str] = []
         self.rk: Dict[T, RowKey] = {}
-        self.rupd: Dict[T, int] = collections.defaultdict(int)
+        self.rupd: Dict[T, float] = collections.defaultdict(int)
         self.extra_columns = extra_columns
         traits_keys = {}
         for f in self.fixtures:
@@ -238,7 +236,7 @@ def fmt_colour(rgb: RGB) -> Text:
 
 @functools.lru_cache(maxsize=20000)
 def fmt_hexblob(hexcolour: str) -> Text:
-    t = f"⬤ "
+    t = "⬤ "
     return Text(t, style=hexcolour)
 
 
@@ -463,7 +461,7 @@ class LoadPresetScreen(ModalScreen[Optional[str]]):
     def compose(self) -> ComposeResult:
         yield Vertical(
             Label("Load Preset"),
-            ol := OptionList(
+            OptionList(
                 *self.choices,
             ),
             Button("Cancel", variant="primary", id="cancel"),
@@ -517,7 +515,7 @@ class AddFixtureScreen(ModalScreen):
         self.app.pop_screen()
 
 
-class OlaPilot(App):
+class TextualPilot(App):
     """A Textual app to manage DMX lighting."""
 
     CSS_PATH = "pilot.css"
@@ -613,7 +611,7 @@ class OlaPilot(App):
 
 if __name__ == "__main__":
     controller = build_show()
-    app = OlaPilot(controller)
+    app = TextualPilot(controller)
     app.run()
     print("finished")
     controller.save_showfile()

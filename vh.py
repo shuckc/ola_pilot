@@ -1,7 +1,7 @@
 import argparse
 
-from fixtures import IbizaMini, LedJ7Q5RGBA, IntimidatorSpotDuo
-from desk import Controller, MidiCC, WavePT_EFX
+from fixtures import IbizaMini, LedJ7Q5RGBA
+from desk import Controller, MidiCC, ControllerUniverseOutput
 from fx import (
     ColourInterpolateEFX,
     PerlinNoiseEFX,
@@ -12,7 +12,7 @@ from fx import (
     PositionIndexer,
 )
 from trait import IntensityChannel
-from pilot import OlaPilot
+from pilot import TextualPilot
 from aio_ola import OlaClient
 from rtmidi.midiutil import open_midiinput
 
@@ -20,7 +20,7 @@ from rtmidi.midiutil import open_midiinput
 def build_show(args):
     client = OlaClient()
     controller = Controller(update_interval=25)
-    controller.add_output(client)
+    controller.add_network(client)
 
     if args.midi_in:
         midiin, port_name = open_midiinput(port="MPK")
@@ -43,10 +43,10 @@ def build_show(args):
     controller.add_fixture(par3 := LedJ7Q5RGBA(), 1, 94)
 
     if args.midi_in:
-        banks.bind_cc(70, efx.set_pan_midi)
-        banks.bind_cc(71, efx.set_tilt_midi)
+        #banks.bind_cc(70, efx.set_pan_midi)
+        #banks.bind_cc(71, efx.set_tilt_midi)
         banks.bind_cc(72, mini0.spot.set)
-        banks.bind_cc(73, efx.set_wave_deg)
+        #banks.bind_cc(73, efx.set_wave_deg)
 
     noise = PerlinNoiseEFX(count=8)
     controller.add_efx(noise)
@@ -102,8 +102,8 @@ def build_show(args):
     controller.add_efx(static_gobo)
 
     static = StaticColour(trait_type=IntensityChannel)
-    for f in cib._inputs:
-        static.c0.bind(f)
+    for i2 in cib._inputs:
+        static.c0.bind(i2)
     controller.add_efx(static)
 
     cp = CosPulseEFX(channels=8)
@@ -118,28 +118,12 @@ def build_show(args):
 
     controller.add_efx(cp)
 
-    intims = []
-    for i in range(2):
-        # patch these to the same base address, so each head is controlled separately
-        intim_h0 = IntimidatorSpotDuo(head=0)
-        intim_h1 = IntimidatorSpotDuo(head=1)
-        controller.add_fixture(intim_h0, 1, 99 + i * 20)
-        controller.add_fixture(intim_h1, 1, 99 + i * 20)
-        intims.extend([intim_h0, intim_h1])
-
     p = PositionIndexer(is_global=True, presets=4)
     controller.add_efx(p)
     p.o0.bind(mini0.pos)
     p.o1.bind(mini1.pos)
     p.o2.bind(mini2.pos)
     p.o3.bind(mini3.pos)
-
-    p = PositionIndexer(is_global=True, presets=4)
-    controller.add_efx(p)
-    p.o0.bind(intims[0].pos)
-    p.o1.bind(intims[1].pos)
-    p.o2.bind(intims[2].pos)
-    p.o3.bind(intims[3].pos)
 
     return controller
 
@@ -155,6 +139,6 @@ if __name__ == "__main__":
 
     controller = build_show(args)
     controller.load_showfile("showfile.json")
-    app = OlaPilot(controller, args.hide_efx, args.hide_dmx, args.hide_fixtures)
+    app = TextualPilot(controller, args.hide_efx, args.hide_dmx, args.hide_fixtures)
     app.run()
     controller.save_showfile()

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Callable, List, MutableSequence, TypeAlias, Optional, Dict, Any
+from typing import Any, List, MutableSequence, TypeAlias, Optional, Dict
 
 UniverseType: TypeAlias = MutableSequence[int]
 
@@ -39,7 +39,7 @@ class ChannelProp(ABC):
 
 
 class ByteChannelProp(ChannelProp):
-    def _write_dmx(self):
+    def _write_dmx(self) -> None:
         if self.data:
             self.data[self.base] = self.pos
 
@@ -48,7 +48,7 @@ class FineChannelProp(ChannelProp):
     def __init__(self):
         super().__init__(pos_max=0xFFFF)
 
-    def _write_dmx(self):
+    def _write_dmx(self) -> None:
         if self.data:
             self.data[self.base] = self.pos >> 8
             self.data[self.base + 1] = self.pos & 0xFF
@@ -61,7 +61,7 @@ class IndexedByteChannelProp(ByteChannelProp):
         self.values: Dict[str, int] = values
         self.keys_to_pos = dict([(k, i) for i, k in enumerate(self.key_list)])
 
-    def _write_dmx(self):
+    def _write_dmx(self) -> None:
         key: str = self.key_list[self.pos]
         v = self.values[key]
         if self.data:

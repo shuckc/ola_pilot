@@ -23,8 +23,6 @@ from fx import ColourInterpolateEFX, PerlinNoiseEFX
 from registration import (
     EFX,
     Fixture,
-    efx_class_list,
-    fixture_class_list,
     register_efx,
     ThingWithTraits,
 )
@@ -50,8 +48,8 @@ class WavePT_EFX(EFX):
         # magnitude of oscilation
         wave = math.cos(ms) * self.wave.value.pos
         # map to pan and tilt by orientation
-        wave_p = wave * math.cos(self.orientation)
-        wave_t = wave * math.sin(self.orientation)
+        #wave_p = wave * math.cos(self.orientation)
+        #wave_t = wave * math.sin(self.orientation)
 
         self.o0.set_degrees_pos(
             360 * ((self.pan_midi / 127) - 0.5),
@@ -68,16 +66,25 @@ class WavePT_EFX(EFX):
         self.wave = wave
 
 
-class ControllerUniverseOutput:
+class NetNode:
+    def __init__(self, name='name', address='address'):
+        self.name = name
+        self.address = address
+
+class ControllerUniverseOutput(ABC):
     async def set_dmx(self, universe: int, buffer):
         pass
 
-    async def connect(self):
+    async def connect(self, controller: "Controller"):
         pass
+
+    def get_nodes(self) -> List[NetNode]:
+        return []
+
 
 
 class Controller:
-    def __init__(self, update_interval=25):
+    def __init__(self, update_interval=25) -> None:
         self._update_interval: int = update_interval
         self.outputs = []
         self.fixtures: List[Fixture] = []
@@ -96,7 +103,7 @@ class Controller:
         self.presets = {}
         self.showfile_name: Optional[str] = None
 
-    async def run(self):
+    async def run(self) -> None:
         self._conn_task = [asyncio.create_task(o.connect()) for o in self.outputs]
 
         while True:
@@ -105,7 +112,7 @@ class Controller:
             next_tick = before + self._update_interval / 1000.0
             await asyncio.sleep(next_tick - time.time())
 
-    async def _tick_once(self, showtime):
+    async def _tick_once(self, showtime: float) -> None:
         self.showtime = showtime - self.init
         self.frames += 1
         self.fps = self.frames / self.showtime
@@ -271,6 +278,8 @@ class MidiCC:
                         f"Note touch: ch{channel} note {message[1]} velocity {message[2]}"
                     )
                     self.notes_on[message[1]] = message[2]
+                elif message[0] & 0xF0 == PROGRAM_CHANGE:
+                    print(f"Program change ch{channel}")
                 else:
                     print(f"unknown midi event: {msg} {hex(msg[0][0])}")
             else:
@@ -314,10 +323,10 @@ def build_show():
     controller.add_fixture(mini2, 1, 40)
     controller.add_fixture(mini3, 1, 60)
 
-    controller.add_fixture(par1 := LedJ7Q5RGBA(), 1, 85)
+    controller.add_fixture(LedJ7Q5RGBA(), 1, 85)
     controller.add_fixture(par2 := LedJ7Q5RGBA(), 1, 79)
-    controller.add_fixture(par3 := LedJ7Q5RGBA(), 1, 85)
-    controller.add_fixture(par4 := LedJ7Q5RGBA(), 1, 90)
+    controller.add_fixture(LedJ7Q5RGBA(), 1, 85)
+    controller.add_fixture(LedJ7Q5RGBA(), 1, 90)
 
     # this sets a raw channel value in the DMX universe, it will
     # be overridden by any patched fixture
@@ -362,7 +371,7 @@ async def main():
             print(controller)
             await asyncio.sleep(1.0)
 
-    task = asyncio.create_task(print_stats())
+    asyncio.create_task(print_stats())
     await controller.run()
 
 

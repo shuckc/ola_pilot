@@ -21,8 +21,8 @@ from desk import ControllerUniverseOutput
 
 
 class OlaClient(ControllerUniverseOutput):
-    def __init__(self, host="localhost", port=9010):
-        self._handlers = {}
+    def __init__(self, host="localhost", port=9010) -> None:
+        self._handlers: dict[int, tuple[type[betterproto.Message], asyncio.Future]] = {}
         self._request_counter = itertools.count()
         self._host = host
         self._port = port
@@ -69,7 +69,7 @@ class OlaClient(ControllerUniverseOutput):
         while True:
             header = await self._reader.readexactly(4)
             header_value = struct.unpack("<L", header)[0]
-            version = (header_value & 0xF0000000) >> 28
+            # version = (header_value & 0xF0000000) >> 28
             sz = header_value & 0x0FFFFFF
             # print(f'Awaiting version {version} size {sz}')
 

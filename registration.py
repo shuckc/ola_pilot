@@ -6,11 +6,11 @@ from trait import OnOffTrait, Trait
 
 
 class ThingWithTraits:
-    def __init__(self):
+    def __init__(self) -> None:
         self.owner: Optional[Any] = None
         self.name: Optional[str] = None
 
-    def set_owner_name(self, owner: Any, name: str):
+    def set_owner_name(self, owner: Any, name: str) -> None:
         self.owner = owner
         self.name = name
 

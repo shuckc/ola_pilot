@@ -12,7 +12,7 @@ from channel import (
 
 
 class Observable:
-    def __init__(self):
+    def __init__(self) -> None:
         self._listeners: List[Callable[[Any], None]] = []
         super().__init__()
 
@@ -22,8 +22,8 @@ class Observable:
     def _changed(self, change_from: Any) -> None:
         if change_from == self:
             return
-        for l in self._listeners:
-            l(change_from)
+        for listener in self._listeners:
+            listener(change_from)
 
 
 class Trait(Observable, ABC):

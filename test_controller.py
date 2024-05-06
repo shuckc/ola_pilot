@@ -1,4 +1,3 @@
-import itertools
 from array import array
 from typing import Any
 import pytest
@@ -221,7 +220,7 @@ def test_fixture_unpatched():
 def test_fixture_add_and_patch():
     controller = Controller(update_interval=25)
     f = MockRGBFixture()
-    uid = controller.add_fixture(f, universe=2, base=30)
+    controller.add_fixture(f, universe=2, base=30)
 
     assert f.universe == 2
     assert f.base == 30
@@ -232,7 +231,7 @@ def test_fixture_add_and_patch():
 
 def test_controller_persist():
     controller = Controller(update_interval=25)
-    uid = controller.add_fixture(f := MockRGBFixture())
+    controller.add_fixture(f := MockRGBFixture())
     f.wash.red.set(128)
 
     j = controller.get_state_as_dict()

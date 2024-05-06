@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 import betterproto
-import grpclib
-
 
 class RegisterAction(betterproto.Enum):
     REGISTER = 1

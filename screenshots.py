@@ -1,11 +1,8 @@
 import asyncio
 
-from fixtures import IbizaMini, LedJ7Q5RGBA, IntimidatorSpotDuo
-from desk import Controller, MidiCC, WavePT_EFX
+from desk import Controller
 from trait import RGB
 from pilot import OlaPilot
-from aio_ola import OlaClient
-from rtmidi.midiutil import open_midiinput
 from registration import Fixture
 
 
