@@ -14,11 +14,17 @@ from fx import (
 from trait import IntensityChannel
 from pilot import TextualPilot
 from aio_ola import OlaClient
+from aio_artnet import ArtNetClient
 from rtmidi.midiutil import open_midiinput
 
 
-def build_show(args):
-    client = OlaClient()
+def build_show(args) -> Controller:
+    client: ControllerUniverseOutput = None
+    if args.output == "ola":
+        client = OlaClient()
+    elif args.output == "artnet":
+        client = ArtNetClient()
+
     controller = Controller(update_interval=25)
     controller.add_network(client)
 
@@ -134,6 +140,9 @@ if __name__ == "__main__":
     parser.add_argument("--hide-dmx", action="store_false")
     parser.add_argument("--hide-fixtures", action="store_false")
     parser.add_argument("--hide-efx", action="store_false")
+
+    parser.add_argument("--old", action="store_false")
+    parser.add_argument("--output", choices=['ola', 'artnet'], default="ola")
 
     args = parser.parse_args()
 

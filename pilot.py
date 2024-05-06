@@ -35,7 +35,7 @@ from textual.widgets import (
 from textual.widgets._data_table import RowKey
 
 from channel import ChannelProp
-from desk import EFX, Fixture, MidiCC, build_show
+from desk import EFX, Fixture, MidiCC, build_show, NetNode
 from registration import fixture_class_list, ThingWithTraits
 from trait import (
     RGB,
@@ -88,6 +88,39 @@ class ShowtimeDisplay(NoReLayoutStatic):
             f"Showtime {hours:02,.0f}:{minutes:02.0f}:{seconds:05.2f} fps "
             + f"{self.controller.fps:02.0f}/{self.controller.target_fps:02.0f}  {BLACKOUT_DICT[self.controller.blackout]}"
         )
+
+
+class NodeTable(DataTable):
+    def __init__(self, nodes: List[NetNode]=[]) -> None:
+        super(NodeTable, self).__init__()
+        self.nodes: dict[NetNode, Optional[RowKey]] = dict([(n, None) for n in nodes])
+
+    def on_mount(self) -> None:
+        # iterate fixtures for traits, build dicts
+        # traits with same nuderlying type and name over multiple fixures go in same column
+
+        self.add_column('address', key='address')
+        self.add_column('name', key='name')
+
+        for node in self.nodes:
+            rk = self.add_row(node.address, node.name)
+            self.nodes[node] = rk
+        self.styles.scrollbar_gutter = "stable"
+
+    def on_node_changed(
+        self,
+        node: NetNode,
+    ) -> None:
+        if node not in self.nodes:
+            rk = self.add_row(node.address, node.name)
+            self.nodes[node] = rk
+
+        for t in ['address', 'name']:
+            attr = str(getattr(node, t))
+            rk2 = self.nodes[node]
+            if rk2:
+                self.update_cell(rk2, t, attr)
+
 
 class UniverseDisplay(NoReLayoutStatic):
     def __init__(
@@ -539,6 +572,10 @@ class TextualPilot(App):
 
     def compose(self) -> ComposeResult:
         contents: List[Widget] = []
+
+        nodes = self.controller.get_nodes()
+        contents.append(NodeTable(nodes))
+
         if self.show_dmx:
             for univ, data in self.controller.universes.items():
                 contents.append(UniverseDisplay(univ, data))

@@ -8,6 +8,8 @@ from array import array
 from collections import defaultdict
 from typing import List, Optional, Dict, Any
 import itertools
+from abc import ABC
+
 
 from rtmidi.midiconstants import (
     CHANNEL_AFTERTOUCH,
@@ -174,7 +176,7 @@ class Controller:
         self.efx.append(efx)
         return uid
 
-    def add_output(self, output: ControllerUniverseOutput) -> None:
+    def add_network(self, output: ControllerUniverseOutput) -> None:
         self.outputs.append(output)
 
     def add_pollable(self, pollable):
@@ -242,6 +244,11 @@ class Controller:
                 json.dump(d, f, indent=2)
                 f.write("\n")
 
+    def get_nodes(self) -> List[NetNode]:
+        nodes = []
+        for out in self.outputs:
+            nodes.extend(out.get_nodes())
+        return nodes
 
 class MidiCC:
     def __init__(self, midi_in):
