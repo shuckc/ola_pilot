@@ -144,7 +144,7 @@ class PerlinNoiseEFX(EnabledEFX, EFX):
             self._outputs.append(o)
             setattr(self, f"o{i}", o)
 
-    def tick(self, counter: int) -> None:
+    def tick(self, counter: float) -> None:
         # plasma.js scales the 2D grid of fixtures to fit a unit square, then scales
         # it back to a user editable total size, called 'scale'. So adding a fixture
         # *reduces* the effective scale, which doesn't seem right.
@@ -200,9 +200,6 @@ class ColourInterpolateEFX(EnabledEFX, EFX):
         if len(o) == 0:
             o = [control_points[0]]
         return o
-
-    def tick(self, counter):
-        pass
 
 
 @register_efx
@@ -361,9 +358,6 @@ class PositionIndexer(EFX):
             och = PTPos()
             self._outputs.append(och)
             setattr(self, f"o{i}", och)
-
-    def tick(self, counter: float) -> None:
-        pass
 
     def on_preset_change(self, src: Any):
         p = self.preset.value.pos

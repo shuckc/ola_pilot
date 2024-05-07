@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Any, List, MutableSequence, TypeAlias, Optional, Dict
+from typing import Any, List, TypeAlias, Optional, Dict
 
-UniverseType: TypeAlias = MutableSequence[int]
+UniverseType: TypeAlias = bytearray
 
 
 class ChannelProp(ABC):

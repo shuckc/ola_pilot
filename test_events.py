@@ -1,13 +1,14 @@
 from events import Observable, ObservableDict
 from test_controller import ChangeCounter
 
-def test_observable():
 
+def test_observable():
     class Obs(Observable["Obs"]):
         pass
 
     o = Obs()
     ref = ChangeCounter()
+
     def p(src):
         ref.changed()
 
@@ -23,6 +24,7 @@ def test_observable():
     o.notify(None)
     assert ref.changes == 2
 
+
 def test_observable_dict():
     ref = ChangeCounter()
 
@@ -32,14 +34,13 @@ def test_observable_dict():
     s.changed.sub(ref.changed)
     assert ref.changes == 0
 
-    s['xyx'] = True
+    s["xyx"] = True
     assert ref.changes == 1
 
     assert len(s) == 1
-    s['xyx'] = False
+    s["xyx"] = False
     assert ref.changes == 2
 
-    del s['xyx']
+    del s["xyx"]
     assert len(s) == 0
     assert ref.changes == 3
-

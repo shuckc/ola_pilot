@@ -2,7 +2,9 @@ from typing import Callable, TypeVar, Generic
 from collections import UserDict
 
 
-T = TypeVar('T')
+T = TypeVar("T")
+
+
 class Observable(Generic[T]):
     def __init__(self) -> None:
         self._listeners: dict[Callable[[T], None], None] = {}
@@ -24,8 +26,10 @@ class Observable(Generic[T]):
         for listener in self._listeners.keys():
             listener(context)
 
-OK = TypeVar('OK')
-OV = TypeVar('OV')
+
+OK = TypeVar("OK")
+OV = TypeVar("OV")
+
 
 class ObservableDict(UserDict, Generic[OK, OV]):
     def __init__(self) -> None:

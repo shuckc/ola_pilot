@@ -22,6 +22,11 @@ Use OLA admin http://localhost:9090/ola.html to attach a universe to a dongle or
     $ pip install -r requirements.txt
     $ python pilot.py
 
+Arc-Net Boilerplate
+----
+
+This application aims to be compatible with “Art-Net™ Designed by and Copyright Artistic Licence Engineering Ltd.
+
 
 Further Information
 -----

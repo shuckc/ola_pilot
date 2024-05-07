@@ -6,6 +6,7 @@ from typing import List, Optional
 
 import betterproto
 
+
 class RegisterAction(betterproto.Enum):
     REGISTER = 1
     UNREGISTER = 2

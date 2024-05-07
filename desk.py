@@ -4,9 +4,8 @@ import json
 import math
 import os
 import time
-from array import array
 from collections import defaultdict
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Sequence
 import itertools
 from abc import ABC
 
@@ -27,8 +26,10 @@ from registration import (
     Fixture,
     register_efx,
     ThingWithTraits,
+    Pollable,
 )
 from trait import Channel, PTPos
+from events import ObservableDict
 
 DMX_UNIVERSE_SIZE = 512
 
@@ -50,8 +51,8 @@ class WavePT_EFX(EFX):
         # magnitude of oscilation
         wave = math.cos(ms) * self.wave.value.pos
         # map to pan and tilt by orientation
-        #wave_p = wave * math.cos(self.orientation)
-        #wave_t = wave * math.sin(self.orientation)
+        # wave_p = wave * math.cos(self.orientation)
+        # wave_t = wave * math.sin(self.orientation)
 
         self.o0.set_degrees_pos(
             360 * ((self.pan_midi / 127) - 0.5),
@@ -69,12 +70,13 @@ class WavePT_EFX(EFX):
 
 
 class NetNode:
-    def __init__(self, name='name', address='address'):
+    def __init__(self, name="name", address="address"):
         self.name = name
         self.address = address
 
+
 class ControllerUniverseOutput(ABC):
-    async def set_dmx(self, universe: int, buffer):
+    async def set_dmx(self, universe: int, buffer: bytes | bytearray):
         pass
 
     async def connect(self, controller: "Controller"):
@@ -84,29 +86,29 @@ class ControllerUniverseOutput(ABC):
         return []
 
 
-
 class Controller:
     def __init__(self, update_interval=25) -> None:
         self._update_interval: int = update_interval
-        self.outputs = []
+        self.outputs: list[ControllerUniverseOutput] = []
         self.fixtures: List[Fixture] = []
-        self.pollable = []
-        self.efx = []
+        self.pollable: List[Pollable] = []
+        self.efx: List[EFX] = []
         self.init = time.time()
-        self.frames = 0
+        self.frames: int = 0
         self.fps: float = 0
         self.target_fps = 1 / self._update_interval * 1000
         self.showtime: float = 0
-        self.universes = {}
+        self.universes: dict[int, bytearray] = {}
         self.blackout = False
-        self._blackout_buffer = array("B", [0] * DMX_UNIVERSE_SIZE)
+        self._blackout_buffer = bytes(DMX_UNIVERSE_SIZE)
         self.prefix_counter: Dict[str, itertools.count] = defaultdict(itertools.count)
         self.objects_by_name: Dict[str, ThingWithTraits] = {}
-        self.presets = {}
+        self.presets: dict[str, Any] = {}
         self.showfile_name: Optional[str] = None
+        self.nodes: ObservableDict[NetNode, None] = ObservableDict()
 
     async def run(self) -> None:
-        self._conn_task = [asyncio.create_task(o.connect()) for o in self.outputs]
+        self._conn_task = [asyncio.create_task(o.connect(self)) for o in self.outputs]
 
         while True:
             before = time.time()
@@ -166,9 +168,9 @@ class Controller:
         if fixture.base != base:
             raise ValueError("fixture.patch did not call superclass")
 
-    def _get_universe(self, universe: int):
+    def _get_universe(self, universe: int) -> bytearray:
         if universe not in self.universes:
-            self.universes[universe] = array("B", [0] * DMX_UNIVERSE_SIZE)
+            self.universes[universe] = bytearray(DMX_UNIVERSE_SIZE)
         return self.universes[universe]
 
     def add_efx(self, efx: EFX) -> str:
@@ -179,7 +181,7 @@ class Controller:
     def add_network(self, output: ControllerUniverseOutput) -> None:
         self.outputs.append(output)
 
-    def add_pollable(self, pollable):
+    def add_pollable(self, pollable: Pollable):
         self.pollable.append(pollable)
 
     def set_dmx(self, universe: int, channel: int, value: int):
@@ -224,7 +226,7 @@ class Controller:
     def load_preset(self, name: str) -> None:
         self.set_state_from_dict(self.presets[name])
 
-    def load_showfile(self, name: str):
+    def load_showfile(self, name: str) -> None:
         nm = os.path.expanduser(name)
         self.showfile_name = nm
         try:
@@ -235,7 +237,7 @@ class Controller:
         except FileNotFoundError:
             pass
 
-    def save_showfile(self):
+    def save_showfile(self) -> None:
         d = {}
         d["presets"] = self.presets
         d["global"] = self.get_global_as_dict()
@@ -244,13 +246,15 @@ class Controller:
                 json.dump(d, f, indent=2)
                 f.write("\n")
 
-    def get_nodes(self) -> List[NetNode]:
-        nodes = []
-        for out in self.outputs:
-            nodes.extend(out.get_nodes())
-        return nodes
+    def get_nodes(self) -> Sequence[NetNode]:
+        return self.nodes.keys()
 
-class MidiCC:
+    def add_node(self, node: NetNode) -> None:
+        print("controller adding node")
+        self.nodes[node] = None
+
+
+class MidiCC(Pollable):
     def __init__(self, midi_in):
         self.midi_in = midi_in
         self.notes_on = {}

@@ -35,7 +35,7 @@ from textual.widgets import (
 from textual.widgets._data_table import RowKey
 
 from channel import ChannelProp
-from desk import EFX, Fixture, MidiCC, build_show, NetNode
+from desk import EFX, Fixture, MidiCC, build_show, NetNode, Controller
 from registration import fixture_class_list, ThingWithTraits
 from trait import (
     RGB,
@@ -91,35 +91,41 @@ class ShowtimeDisplay(NoReLayoutStatic):
 
 
 class NodeTable(DataTable):
-    def __init__(self, nodes: List[NetNode]=[]) -> None:
+    def __init__(self, controller: Controller) -> None:
         super(NodeTable, self).__init__()
-        self.nodes: dict[NetNode, Optional[RowKey]] = dict([(n, None) for n in nodes])
+        self.controller_nodes = controller.nodes
+        self.node_keys: dict[NetNode, RowKey] = {}
+
+    def _do_add_row(self, node):
+        self.node_keys[node] = self.add_row(node.address, node.name)
 
     def on_mount(self) -> None:
         # iterate fixtures for traits, build dicts
         # traits with same nuderlying type and name over multiple fixures go in same column
 
-        self.add_column('address', key='address')
-        self.add_column('name', key='name')
+        self.add_column("address", key="address")
+        self.add_column("name", key="name")
 
-        for node in self.nodes:
-            rk = self.add_row(node.address, node.name)
-            self.nodes[node] = rk
+        for node in self.controller_nodes.keys():
+            self._do_add_row(node)
         self.styles.scrollbar_gutter = "stable"
+
+        self.controller_nodes.added.sub(self._do_add_row)
+        self.controller_nodes.changed.sub(self.on_node_changed)
 
     def on_node_changed(
         self,
         node: NetNode,
     ) -> None:
-        if node not in self.nodes:
-            rk = self.add_row(node.address, node.name)
-            self.nodes[node] = rk
-
-        for t in ['address', 'name']:
-            attr = str(getattr(node, t))
-            rk2 = self.nodes[node]
-            if rk2:
-                self.update_cell(rk2, t, attr)
+        # if node not in self.nodes:
+        #    rk = self.add_row(node.address, node.name)
+        #    self.nodes[node] = rk
+        # for t in ['address', 'name']:
+        #    attr = str(getattr(node, t))
+        #    rk2 = self.nodes[node]
+        #    if rk2:
+        #        self.update_cell(rk2, t, attr)
+        pass
 
 
 class UniverseDisplay(NoReLayoutStatic):
@@ -573,8 +579,7 @@ class TextualPilot(App):
     def compose(self) -> ComposeResult:
         contents: List[Widget] = []
 
-        nodes = self.controller.get_nodes()
-        contents.append(NodeTable(nodes))
+        contents.append(NodeTable(self.controller))
 
         if self.show_dmx:
             for univ, data in self.controller.universes.items():

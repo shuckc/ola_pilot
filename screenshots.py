@@ -2,7 +2,7 @@ import asyncio
 
 from desk import Controller
 from trait import RGB
-from pilot import OlaPilot
+from pilot import TextualPilot
 from registration import Fixture
 
 
@@ -27,7 +27,7 @@ async def main():
     controller = build_show()
     # await controller.run()
 
-    app = OlaPilot(controller)
+    app = TextualPilot(controller)
     async with app.run_test(
         size=(120, 40),
     ) as pilot:

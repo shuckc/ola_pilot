@@ -1,6 +1,6 @@
 import functools
 from abc import ABC, abstractmethod
-from typing import Any, List, Iterator, Tuple, Dict, Callable
+from typing import Any, List, Iterator, Tuple, Dict
 
 from channel import (
     ByteChannelProp,
@@ -10,23 +10,10 @@ from channel import (
     IndexedByteChannelProp,
 )
 
-
-class Observable:
-    def __init__(self) -> None:
-        self._listeners: List[Callable[[Any], None]] = []
-        super().__init__()
-
-    def _patch_listener(self, listener: Callable[["Trait"], None]) -> None:
-        self._listeners.append(listener)
-
-    def _changed(self, change_from: Any) -> None:
-        if change_from == self:
-            return
-        for listener in self._listeners:
-            listener(change_from)
+from events import Observable
 
 
-class Trait(Observable, ABC):
+class Trait(Observable["Trait"], ABC):
     def __init__(self, is_global=False):
         super().__init__()
         self.is_bound = False

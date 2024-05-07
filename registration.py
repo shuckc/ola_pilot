@@ -5,6 +5,11 @@ from channel import UniverseType
 from trait import OnOffTrait, Trait
 
 
+class Pollable:
+    def tick(self, showtime: float) -> None:
+        pass
+
+
 class ThingWithTraits:
     def __init__(self) -> None:
         self.owner: Optional[Any] = None
@@ -61,12 +66,9 @@ class Fixture(ThingWithTraits, ABC):
         self.base = base
 
 
-class EFX(ThingWithTraits):
+class EFX(ThingWithTraits, Pollable):
     def __init__(self):
         super().__init__()
-
-    def tick(self, counter: int) -> None:
-        pass
 
 
 class EnabledEFX:

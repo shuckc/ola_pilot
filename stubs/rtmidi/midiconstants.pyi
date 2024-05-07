@@ -163,4 +163,5 @@ FPS_25: int
 FPS_29: int
 FPS_30: int
 
-def is_status(byte): bool
+def is_status(byte):
+    bool

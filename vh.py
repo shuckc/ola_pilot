@@ -16,17 +16,19 @@ from pilot import TextualPilot
 from aio_ola import OlaClient
 from aio_artnet import ArtNetClient
 from rtmidi.midiutil import open_midiinput
+from typing import Optional
 
 
 def build_show(args) -> Controller:
-    client: ControllerUniverseOutput = None
+    client: Optional[ControllerUniverseOutput] = None
     if args.output == "ola":
         client = OlaClient()
     elif args.output == "artnet":
         client = ArtNetClient()
 
     controller = Controller(update_interval=25)
-    controller.add_network(client)
+    if client:
+        controller.add_network(client)
 
     if args.midi_in:
         midiin, port_name = open_midiinput(port="MPK")
@@ -49,10 +51,10 @@ def build_show(args) -> Controller:
     controller.add_fixture(par3 := LedJ7Q5RGBA(), 1, 94)
 
     if args.midi_in:
-        #banks.bind_cc(70, efx.set_pan_midi)
-        #banks.bind_cc(71, efx.set_tilt_midi)
+        # banks.bind_cc(70, efx.set_pan_midi)
+        # banks.bind_cc(71, efx.set_tilt_midi)
         banks.bind_cc(72, mini0.spot.set)
-        #banks.bind_cc(73, efx.set_wave_deg)
+        # banks.bind_cc(73, efx.set_wave_deg)
 
     noise = PerlinNoiseEFX(count=8)
     controller.add_efx(noise)
@@ -140,14 +142,27 @@ if __name__ == "__main__":
     parser.add_argument("--hide-dmx", action="store_false")
     parser.add_argument("--hide-fixtures", action="store_false")
     parser.add_argument("--hide-efx", action="store_false")
+    parser.add_argument("--cli", action="store_true")
 
     parser.add_argument("--old", action="store_false")
-    parser.add_argument("--output", choices=['ola', 'artnet'], default="ola")
+    parser.add_argument("--output", choices=["ola", "artnet"], default="ola")
 
     args = parser.parse_args()
 
     controller = build_show(args)
     controller.load_showfile("showfile.json")
-    app = TextualPilot(controller, args.hide_efx, args.hide_dmx, args.hide_fixtures)
-    app.run()
+
+    if args.cli:
+        app = TextualPilot(controller, args.hide_efx, args.hide_dmx, args.hide_fixtures)
+        app.run()
+    else:
+
+        async def fun():
+            await controller.run()
+
+        controller.nodes.added.sub(lambda x: print("hello"))
+        import asyncio
+
+        asyncio.run(fun())
+
     controller.save_showfile()

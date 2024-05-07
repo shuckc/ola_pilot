@@ -1,5 +1,4 @@
 from array import array
-from typing import Any
 import pytest
 
 from desk import Controller
@@ -84,16 +83,16 @@ def test_indexed_channel():
     assert u[5] == 40
 
 
-class change_counter:
+class ChangeCounter:
     def __init__(self):
         self.changes = 0
 
-    def changed(self, source: Any):
+    def changed(self, *args):
         self.changes += 1
 
 
 def test_changed_hook():
-    cc = change_counter()
+    cc = ChangeCounter()
     assert cc.changes == 0
 
     r = RGB()
@@ -113,7 +112,7 @@ def test_changed_hook():
 def test_trait_bind():
     r = RGB()
     r2 = RGB()
-    cc = change_counter()
+    cc = ChangeCounter()
 
     assert not r2.is_bound
 
@@ -144,7 +143,7 @@ def test_trait_bind():
 def test_intensity_bind():
     r1 = IntensityChannel()
     r2 = IntensityChannel()
-    cc = change_counter()
+    cc = ChangeCounter()
     r2._patch_listener(cc.changed)
     r1.bind(r2)
     r1.set(40)
