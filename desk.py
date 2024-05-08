@@ -33,6 +33,8 @@ from events import ObservableDict
 
 DMX_UNIVERSE_SIZE = 512
 
+UniverseKey = int | str
+
 
 @register_efx
 class WavePT_EFX(EFX):
@@ -76,7 +78,7 @@ class NetNode:
 
 
 class ControllerUniverseOutput(ABC):
-    async def set_dmx(self, universe: int, buffer: bytes | bytearray):
+    async def set_dmx(self, universe: UniverseKey, buffer: bytes | bytearray):
         pass
 
     async def connect(self, controller: "Controller"):
@@ -98,7 +100,7 @@ class Controller:
         self.fps: float = 0
         self.target_fps = 1 / self._update_interval * 1000
         self.showtime: float = 0
-        self.universes: dict[int, bytearray] = {}
+        self.universes: dict[UniverseKey, bytearray] = {}
         self.blackout = False
         self._blackout_buffer = bytes(DMX_UNIVERSE_SIZE)
         self.prefix_counter: Dict[str, itertools.count] = defaultdict(itertools.count)
@@ -168,7 +170,7 @@ class Controller:
         if fixture.base != base:
             raise ValueError("fixture.patch did not call superclass")
 
-    def _get_universe(self, universe: int) -> bytearray:
+    def _get_universe(self, universe: UniverseKey) -> bytearray:
         if universe not in self.universes:
             self.universes[universe] = bytearray(DMX_UNIVERSE_SIZE)
         return self.universes[universe]
@@ -188,7 +190,7 @@ class Controller:
         univ = self._get_universe(universe)
         univ[channel] = value
 
-    def get_dmx(self, universe, channel):
+    def get_dmx(self, universe: UniverseKey, channel: int):
         if self.blackout:
             return 0
         return self.universes[universe][channel]
