@@ -75,6 +75,7 @@ class NetNode:
     def __init__(self, name="name", address="address"):
         self.name = name
         self.address = address
+        self.ports = []
 
 
 class ControllerUniverseOutput(ABC):
