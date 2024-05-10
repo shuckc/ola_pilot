@@ -97,7 +97,7 @@ class NodeTable(DataTable):
         self.node_keys: dict[NetNode, RowKey] = {}
 
     def _do_add_row(self, node):
-        self.node_keys[node] = self.add_row(node.address, node.name, node.ports)
+        self.node_keys[node] = self.add_row(node.address, node.longName, node.ports)
 
     def on_mount(self) -> None:
         # iterate fixtures for traits, build dicts
