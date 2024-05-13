@@ -25,6 +25,7 @@ def build_show(args) -> Controller:
         client = OlaClient()
     elif args.output == "artnet":
         client = ArtNetClient()
+        client.set_port_config(1, isinput=True)
 
     controller = Controller(update_interval=25)
     if client:
