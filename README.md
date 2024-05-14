@@ -1,3 +1,6 @@
+[![Documentation Status](https://readthedocs.org/projects/ola-pilot/badge/?version=latest)](https://ola-pilot.readthedocs.io/en/latest/?badge=latest)
+
+
 ola_pilot
 ---
 
@@ -9,6 +12,8 @@ Whilst I like QLC+, I was motivated by finding it very difficult to achieve cert
 Optional CLI using [textual](https://github.com/Textualize/textual).
 
 Midi support uses [rtmidi](https://github.com/SpotlightKid/python-rtmidi).
+
+
 
 Running
 ----
@@ -34,6 +39,7 @@ Further Information
 * OLA RPC System https://docs.openlighting.org/ola/doc/latest/rpc_system.html
 * blocking python API https://www.openlighting.org/ola/developer-documentation/python-api/
 * Open Fixture Library https://github.com/OpenLightingProject/open-fixture-library
+* [Documentation](https://ola-pilot.readthedocs.io/en/latest/?badge=latest)
 
 TODO
 ---
