@@ -29,7 +29,7 @@ class OlaClient(ControllerUniverseOutput):
         self._writer: Optional[asyncio.StreamWriter] = None
         self.nodes = [NetNode(name="OLA", address=f"{host}:{port}")]
 
-    async def connect(self, controller):
+    async def connect(self):
         self._reader, self._writer = await asyncio.open_connection(
             self._host, self._port
         )

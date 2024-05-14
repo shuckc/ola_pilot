@@ -111,7 +111,7 @@ class Controller:
         self.nodes: ObservableDict[NetNode, None] = ObservableDict()
 
     async def run(self) -> None:
-        self._conn_task = [asyncio.create_task(o.connect(self)) for o in self.outputs]
+        self._conn_task = [asyncio.create_task(o.connect()) for o in self.outputs]
 
         while True:
             before = time.time()
@@ -130,10 +130,8 @@ class Controller:
         # Send the DMX data
         for o in self.outputs:
             for universe, data in self.universes.items():
-                if self.blackout:
-                    await o.set_dmx(universe, self._blackout_buffer)
-                else:
-                    await o.set_dmx(universe, data)
+                d = self._blackout_buffer if self.blackout else data
+                await o.set_dmx(universe, d)
 
     def _own_and_name(self, thing: ThingWithTraits) -> str:
         # take ownership and provide unique name

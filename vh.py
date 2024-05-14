@@ -14,7 +14,7 @@ from fx import (
 from trait import IntensityChannel
 from pilot import TextualPilot
 from aio_ola import OlaClient
-from aio_artnet import ArtNetClient
+from aioartnet import ArtNetClient
 from rtmidi.midiutil import open_midiinput
 from typing import Optional
 

@@ -3,3 +3,4 @@ black==23.7.0
 python-rtmidi==1.5.4
 pytest-asyncio==0.21.1
 textual==0.35.1
+aioartnet==0.1.0
