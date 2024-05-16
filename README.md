@@ -9,10 +9,9 @@ All output is via. TCP to ola's RPC port (localhost:9010) using protobufs and as
 
 Whilst I like QLC+, I was motivated by finding it very difficult to achieve certain things - like map a MIDI CC to a hue, and drive this to fixtures of multiple types (RGB, RGBA, RGBW) together. With moving heads it was difficult to shape the parameters of animation on the fly.
 
-Optional CLI using [textual](https://github.com/Textualize/textual).
-
-Midi support uses [rtmidi](https://github.com/SpotlightKid/python-rtmidi).
-
+* Optional CLI using [textual](https://github.com/Textualize/textual).
+* Midi support uses [rtmidi](https://github.com/SpotlightKid/python-rtmidi).
+* Art-NEt support uses [aioartnet](https://github.com/TeaEngineering/aioartnet)
 
 
 Running
